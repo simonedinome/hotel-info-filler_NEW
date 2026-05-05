@@ -80,3 +80,9 @@ class CategoryLogger:
 
     def log_writer_failed(self, attempt: int, error: str) -> None:
         self.warning(f"Writer attempt {attempt} failed: {error}")
+
+    def log_grounding_diagnostics(self, segments_found: int, source_text_length: int, search_enabled: bool) -> None:
+        self.info(
+            f"Grounding diagnostics: segments={segments_found}, "
+            f"source_text_length={source_text_length}, search_enabled={search_enabled}"
+        )

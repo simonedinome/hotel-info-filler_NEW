@@ -20,6 +20,7 @@ DONE_FILLS = [
     PatternFill(fill_type="solid", fgColor="FFFFFF"),
     PatternFill(fill_type="solid", fgColor="F5F5F5"),
 ]
+DONE_EMPTY_FILL = PatternFill(fill_type="solid", fgColor="FFF3E0")
 NO_DATA_FILL = PatternFill(fill_type="solid", fgColor="FFF8E1")
 ERROR_FILL = PatternFill(fill_type="solid", fgColor="FFEBEE")
 
@@ -27,7 +28,7 @@ ERROR_FILL = PatternFill(fill_type="solid", fgColor="FFEBEE")
 def _rows_for_export(checkpoint: dict) -> list[tuple[dict, dict]]:
     rows = []
     for entry in checkpoint.values():
-        if entry.get("status") == "done":
+        if entry.get("status") in {"done", "done_empty"}:
             for row in entry.get("rows", []):
                 rows.append((entry, row))
     return rows
@@ -76,9 +77,14 @@ def export_category(category: str) -> str:
 
     export_rows = _rows_for_export(checkpoint)
     for row_index, (entry, row_data) in enumerate(export_rows, start=2):
-        fill = DONE_FILLS[(row_index - 2) % 2]
-        if entry.get("has_category") is False:
+        status = entry.get("status")
+        if status == "done_empty":
+            fill = DONE_EMPTY_FILL
+        elif entry.get("has_category") is False:
             fill = NO_DATA_FILL
+        else:
+            fill = DONE_FILLS[(row_index - 2) % 2]
+
         for column_index, column_name in enumerate(columns, start=1):
             value = row_data.get(column_name)
             cell = sheet.cell(row=row_index, column=column_index, value=value)

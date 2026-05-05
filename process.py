@@ -4,12 +4,14 @@ import argparse
 import sys
 import time
 import traceback
+from pathlib import Path
 
-from config import ALL_CATEGORIES, REQUEST_DELAY, hotels_by_id, load_hotels
+from config import ALL_CATEGORIES, OUTPUT_DIR, REQUEST_DELAY, hotels_by_id, load_hotels
 from core import PromptNotConfiguredError
 from core.checkpoint import (
     get_status,
     load_checkpoint,
+    mark_done_empty,
     mark_done_multi,
     mark_error,
     mark_no_data,
@@ -22,6 +24,7 @@ from core.logger import CategoryLogger, create_run_log
 from core.verifier import verify_rows
 from core.writer import write_editorial
 from schemas import load_schema
+from schemas.common import get_editorial_keys_for_element, get_factual_keys_for_element
 
 
 def parse_args() -> argparse.Namespace:
@@ -103,6 +106,16 @@ def build_row(schema_module, hotel: dict, verified_row: dict, editorial: dict) -
     return row
 
 
+def _all_rows_null(rows: list[dict], schema_module) -> bool:
+    """Return True if every non-system field in every row is null/empty."""
+    system_keys = {col["key"] for col in schema_module.COLUMNS if col["field_type"] == "system"}
+    for row in rows:
+        for key, value in row.items():
+            if key not in system_keys and value not in (None, "", []):
+                return False
+    return True
+
+
 def _effective_source(context: dict, presence_used_search: bool, extraction_used_search: bool) -> str:
     if context.get("source") == "search_only":
         return "search"
@@ -113,7 +126,8 @@ def _effective_source(context: dict, presence_used_search: bool, extraction_used
 
 def process_category(hotel: dict, category: str, run_log_path: str, progress_label: str, force: bool = False) -> None:
     prop_id = str(hotel["Property ID"])
-    if not force and get_status(category, prop_id) in {"done", "no-data", "no-website"}:
+    # T-04: done_empty is skipped on re-runs unless --force
+    if not force and get_status(category, prop_id) in {"done", "done_empty", "no-data", "no-website"}:
         return
 
     logger = CategoryLogger(
@@ -158,8 +172,30 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
         logger.log_step(2, "ROW EXTRACTION")
         extraction_result = extract_rows(hotel, category, context, schema_module)
         raw_rows = extraction_result["rows"]
-        verification_source_text = extraction_result.get("verification_source_text") or context["full_text"] or context["filtered_text"]
         extraction_used_search = context["use_search"]
+
+        # T-09: log grounding diagnostics immediately after extraction
+        logger.log_grounding_diagnostics(
+            segments_found=extraction_result.get("grounding_segments_count", 0),
+            source_text_length=len(extraction_result.get("verification_source_text", "")),
+            search_enabled=extraction_used_search,
+        )
+
+        # T-03: fallback chain for verification source text with logging
+        _vst = extraction_result.get("verification_source_text") or ""
+        if _vst:
+            logger.info("Verification source: grounding_segments")
+        elif context.get("full_text"):
+            _vst = context["full_text"]
+            logger.info("Verification source: full_text (grounding segments were empty)")
+        elif context.get("filtered_text"):
+            _vst = context["filtered_text"]
+            logger.info("Verification source: filtered_text (grounding segments and full_text both empty)")
+        else:
+            _vst = ""
+            logger.info("Verification source: empty (all sources exhausted)")
+        verification_source_text = _vst
+
         if not raw_rows:
             mark_no_data(
                 category,
@@ -198,18 +234,35 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
             final_rows.append(build_row(schema_module, hotel, verified_row, editorial))
 
         logger.log_step(5, "CHECKPOINT SAVE")
-        mark_done_multi(
-            category,
-            prop_id,
-            final_rows,
-            has_category=True,
-            source=_effective_source(context, presence_used_search, extraction_used_search),
-            writer_failed=writer_failed,
-            raw_extraction=raw_rows,
-            verified_extraction=verified_rows,
-            verification_source_text=verification_source_text,
-        )
-        logger.success(f"Done - saved {len(final_rows)} rows to checkpoint")
+        effective_source = _effective_source(context, presence_used_search, extraction_used_search)
+
+        # T-04: use done_empty when presence was confirmed but all output fields are null
+        if _all_rows_null(final_rows, schema_module):
+            mark_done_empty(
+                category,
+                prop_id,
+                final_rows,
+                has_category=True,
+                source=effective_source,
+                writer_failed=writer_failed,
+                raw_extraction=raw_rows,
+                verified_extraction=verified_rows,
+                verification_source_text=verification_source_text,
+            )
+            logger.warning(f"Done-empty — all {len(final_rows)} rows have null data fields")
+        else:
+            mark_done_multi(
+                category,
+                prop_id,
+                final_rows,
+                has_category=True,
+                source=effective_source,
+                writer_failed=writer_failed,
+                raw_extraction=raw_rows,
+                verified_extraction=verified_rows,
+                verification_source_text=verification_source_text,
+            )
+            logger.success(f"Done - saved {len(final_rows)} rows to checkpoint")
     except Exception as exc:
         error_traceback = traceback.format_exc()
         mark_error(category, prop_id, str(exc), error_traceback)
@@ -233,7 +286,7 @@ def print_status(hotels: list[dict], categories: list[str], verbose: bool) -> No
     totals = {}
     for category in categories:
         checkpoint = load_checkpoint(category)
-        counts = {"done": 0, "no-data": 0, "error": 0, "no-website": 0, "pending": 0, "total": len(hotels)}
+        counts = {"done": 0, "done_empty": 0, "no-data": 0, "error": 0, "no-website": 0, "pending": 0, "total": len(hotels)}
         for hotel in hotels:
             status = checkpoint.get(str(hotel["Property ID"]), {}).get("status", "pending")
             counts[status] = counts.get(status, 0) + 1
@@ -247,13 +300,64 @@ def print_status(hotels: list[dict], categories: list[str], verbose: bool) -> No
         return
 
     sys.stdout.write("BWH Content Extractor - Status\n")
-    sys.stdout.write("CATEGORY\tTOTAL\tDONE\tNO-DATA\tNO-WEBSITE\tERROR\tPENDING\n")
+    sys.stdout.write("CATEGORY\tTOTAL\tDONE\tDONE-EMPTY\tNO-DATA\tNO-WEBSITE\tERROR\tPENDING\n")
     for category in categories:
         counts = totals[category]
         sys.stdout.write(
-            f"{category}\t{counts['total']}\t{counts['done']}\t{counts['no-data']}\t"
-            f"{counts['no-website']}\t{counts['error']}\t{counts['pending']}\n"
+            f"{category}\t{counts['total']}\t{counts['done']}\t{counts['done_empty']}\t"
+            f"{counts['no-data']}\t{counts['no-website']}\t{counts['error']}\t{counts['pending']}\n"
         )
+
+
+def _run_column_audit() -> str:
+    """T-10: Audit column key consistency across all schemas.
+
+    Checks:
+    1. Every non-system COLUMNS key is reachable from at least one element.
+    2. Every REPEATED_COLUMN_KEYS entry exists in COLUMNS (typo guard).
+
+    Results written to output/debug/column-audit.txt.
+    """
+    debug_dir = Path(OUTPUT_DIR) / "debug"
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    audit_path = debug_dir / "column-audit.txt"
+
+    lines: list[str] = []
+    for category in ALL_CATEGORIES:
+        schema_module = load_schema(category)
+        lines.append(f"=== {category.upper()} ===")
+
+        # Check 1: orphaned columns — non-system keys not reachable from any element
+        all_reachable: set[str] = set()
+        for element_id in schema_module.ELEMENTS:
+            all_reachable.update(get_factual_keys_for_element(schema_module, element_id))
+            all_reachable.update(get_editorial_keys_for_element(schema_module, element_id))
+
+        orphaned = []
+        for col in schema_module.COLUMNS:
+            if col["field_type"] == "system":
+                continue
+            if col["key"] not in all_reachable:
+                orphaned.append(col["key"])
+        if orphaned:
+            for key in orphaned:
+                lines.append(f"  ORPHANED COLUMN (not reachable from any element): {key}")
+        else:
+            lines.append("  All non-system columns reachable from at least one element: OK")
+
+        # Check 2: REPEATED_COLUMN_KEYS entries all present in COLUMNS
+        all_column_keys = {col["key"] for col in schema_module.COLUMNS}
+        missing_repeated = [k for k in schema_module.REPEATED_COLUMN_KEYS if k not in all_column_keys]
+        if missing_repeated:
+            for key in missing_repeated:
+                lines.append(f"  REPEATED_KEY NOT IN COLUMNS (typo?): {key}")
+        else:
+            lines.append(f"  All {len(schema_module.REPEATED_COLUMN_KEYS)} REPEATED_COLUMN_KEYS present in COLUMNS: OK")
+
+        lines.append("")
+
+    audit_path.write_text("\n".join(lines), encoding="utf-8")
+    return str(audit_path)
 
 
 def main() -> None:
@@ -267,6 +371,8 @@ def main() -> None:
         if missing:
             raise SystemExit("\n".join(missing))
         sys.stdout.write("All prompts are configured.\n")
+        audit_path = _run_column_audit()
+        sys.stdout.write(f"Column audit written to: {audit_path}\n")
         return
 
     if args.command == "export-all":

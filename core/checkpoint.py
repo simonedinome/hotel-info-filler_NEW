@@ -59,8 +59,29 @@ def mark_done_multi(category: str, prop_id: str, rows: list[dict], **extra) -> N
     mark_done(category, prop_id, rows, **extra)
 
 
+def mark_done_empty(category: str, prop_id: str, rows: list[dict], **extra) -> None:
+    """Save checkpoint as done_empty: presence was confirmed but all verified fields are null.
+
+    has_category is kept True (presence was confirmed).
+    The rows array is preserved intact for export (renders in light orange).
+
+    Guard: will not overwrite an existing 'done' entry, since that would
+    be a regression (done_empty is strictly weaker than done).
+    """
+    checkpoint = load_checkpoint(category)
+    existing = checkpoint.get(str(prop_id), {})
+    if existing.get("status") == "done":
+        return
+    checkpoint[str(prop_id)] = _base_entry("done_empty", rows=rows, **extra)
+    save_checkpoint(category, checkpoint)
+
+
 def mark_error(category: str, prop_id: str, error: str, traceback: str | None = None) -> None:
     checkpoint = load_checkpoint(category)
+    # Future-proofing guard: if parallelism is ever introduced, refuse to clobber
+    # a successful 'done' entry with an error from a concurrent retry run.
+    existing = checkpoint.get(str(prop_id), {})
+    assert existing.get("status") != "done", "Refusing to overwrite done status with error"
     checkpoint[str(prop_id)] = _base_entry(
         "error",
         error=error,

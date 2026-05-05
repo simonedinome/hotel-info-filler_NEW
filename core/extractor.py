@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 
@@ -96,6 +97,20 @@ def _extract_text(response) -> str:
     return "\n".join(parts).strip()
 
 
+def _sanitize_json_string(text: str) -> str:
+    """Pre-process LLM output to fix common JSON formatting errors before parsing."""
+    # Replace curly/smart quotes with straight quotes
+    text = text.replace("“", '"').replace("”", '"')
+    text = text.replace("‘", "'").replace("’", "'")
+    # Strip trailing commas before } or ] (common LLM mistake)
+    text = re.sub(r",\s*([}\]])", r"\1", text)
+    # Collapse bare newlines inside JSON string values that break line-by-line parsing.
+    # Only targets newlines that appear after a non-whitespace char and before content
+    # that isn't a JSON structural character — avoids collapsing intentional line breaks.
+    text = re.sub(r'(?<=[^\s{}\[\],:"])\n(?=[^\s{}\[\],":])', " ", text)
+    return text
+
+
 def _parse_json_response_text(text: str):
     candidate = text.strip()
     if candidate.startswith("```"):
@@ -105,6 +120,10 @@ def _parse_json_response_text(text: str):
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         candidate = "\n".join(lines).strip()
+
+    # T-07: sanitize common LLM JSON formatting errors before any parse attempt
+    candidate = _sanitize_json_string(candidate)
+
     try:
         return json.loads(candidate)
     except json.JSONDecodeError:
@@ -134,26 +153,57 @@ def _parse_json_response_text(text: str):
 
 
 def _extract_grounding_segments(response) -> list[str]:
+    """Extract grounded text segments from a Gemini search-enabled response.
+
+    Primary path: grounding_supports[n].segment.text — the portions of the
+    model's output that carry verified search citations (google-genai SDK ≥1.0).
+
+    Fallback: if supports are empty, collect grounding_chunks[n].web.title as
+    lightweight context signals (URIs/titles of the search sources used).
+    """
     segments = []
     for candidate in getattr(response, "candidates", []) or []:
         metadata = getattr(candidate, "grounding_metadata", None)
+        if metadata is None:
+            continue
+
+        # Primary: grounding_supports carry segment-level citation attribution
         supports = getattr(metadata, "grounding_supports", None) or []
         for support in supports:
             segment = getattr(support, "segment", None)
             text = getattr(segment, "text", None)
-            if text:
+            if text and text.strip():
                 segments.append(text.strip())
-    deduped = []
-    seen = set()
+
+        # Fallback: grounding_chunks provide the web sources that were consulted
+        if not segments:
+            chunks = getattr(metadata, "grounding_chunks", None) or []
+            for chunk in chunks:
+                web = getattr(chunk, "web", None)
+                title = getattr(web, "title", None)
+                if title and title.strip():
+                    segments.append(title.strip())
+
+    deduped: list[str] = []
+    seen: set[str] = set()
     for segment in segments:
-        if segment in seen:
-            continue
-        seen.add(segment)
-        deduped.append(segment)
+        if segment not in seen:
+            seen.add(segment)
+            deduped.append(segment)
     return deduped
 
 
 def detect_presence(hotel: dict, category: str, context: dict) -> str:
+    """Detect whether a category is present at the hotel.
+
+    Expected model response shapes (all handled):
+    - {"presence": "present"} or {"presence": "Present"} — .lower() normalises case
+    - {"presence": "absent"} or {"presence": "unknown"}
+    - Markdown-fenced JSON — _parse_json_response_text() strips the fences
+    - Raw string "present" instead of a JSON object — payload.get("presence")
+      returns None → result becomes "unknown" (safe conservative default)
+    - Non-dict payload — isinstance guard returns "unknown" immediately
+    """
     prompt = load_prompt("presence_detection.txt").format(
         hotel_name=hotel.get("Nome account", ""),
         website=hotel.get("Sito Web", ""),
@@ -166,6 +216,8 @@ def detect_presence(hotel: dict, category: str, context: dict) -> str:
         max_attempts=VERIFIER_RETRY_MAX,
     )
     payload = _parse_json_response_text(_extract_text(response))
+    if not isinstance(payload, dict):
+        return "unknown"
     result = str(payload.get("presence", "unknown")).lower().strip()
     if result not in {"present", "absent", "unknown"}:
         return "unknown"
@@ -217,6 +269,27 @@ def _sanitize_enum_value(column_def: dict, value):
     return None
 
 
+def _normalize_citation(citation) -> str | None:
+    """Clean a citation string before it reaches the verifier.
+
+    Rules applied in order:
+    1. Keep only the first semicolon-separated fragment (removes composite lists).
+    2. Strip parenthesised source attributions e.g. (worldhotels.com).
+    3. Trim to 300 characters maximum.
+    4. Strip leading/trailing whitespace and stray punctuation.
+    """
+    if not citation or not isinstance(citation, str):
+        return citation
+    # Keep only the first fragment when semicolons separate multiple sources
+    first_fragment = citation.split(";")[0]
+    # Remove domain attributions in parentheses e.g. "(worldhotels.com)"
+    cleaned = re.sub(r"\s*\([^)]*\.[a-zA-Z]{2,6}\)", "", first_fragment)
+    # Hard limit to keep verifier prompts manageable
+    cleaned = cleaned[:300]
+    cleaned = cleaned.strip().strip(".,;:-")
+    return cleaned if cleaned else None
+
+
 def normalize_extracted_rows(schema_module, payload) -> list[dict]:
     schema_columns = columns_by_key(schema_module.COLUMNS)
     raw_rows = payload.get("rows", payload) if isinstance(payload, dict) else payload
@@ -244,6 +317,9 @@ def normalize_extracted_rows(schema_module, payload) -> list[dict]:
             normalized["value"] = _sanitize_enum_value(column_def, normalized["value"])
             if normalized["value"] in (None, [], ""):
                 normalized["citation"] = None
+            else:
+                # T-05: clean citation before it reaches the verifier
+                normalized["citation"] = _normalize_citation(normalized.get("citation"))
             row["fields"][key] = normalized
         normalized_rows.append(row)
     return normalized_rows
@@ -263,7 +339,9 @@ def extract_rows(hotel: dict, category: str, context: dict, schema_module) -> di
         max_attempts=VERIFIER_RETRY_MAX,
     )
     payload = _parse_json_response_text(_extract_text(response))
+    segments = _extract_grounding_segments(response)
     return {
         "rows": normalize_extracted_rows(schema_module, payload),
-        "verification_source_text": "\n".join(_extract_grounding_segments(response)),
+        "verification_source_text": "\n".join(segments),
+        "grounding_segments_count": len(segments),
     }
