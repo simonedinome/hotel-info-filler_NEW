@@ -76,10 +76,15 @@ def _generate_json(prompt: str, search_enabled: bool):
     config = {
         "temperature": GEMINI_TEMPERATURE,
         "max_output_tokens": GEMINI_MAX_TOKENS,
-        "response_mime_type": "application/json",
     }
     if search_enabled:
+        # response_mime_type: "application/json" is incompatible with grounding tools —
+        # the API silently omits grounding_metadata when JSON mode is forced.
+        # Omit the mime type so grounding segments are populated; _parse_json_response_text
+        # handles plain-text JSON already.
         config["tools"] = [types.Tool(google_search=types.GoogleSearch())]
+    else:
+        config["response_mime_type"] = "application/json"
     return client.models.generate_content(model=GEMINI_MODEL, contents=prompt, config=config)
 
 
