@@ -14,7 +14,7 @@ from config import (
     SEARCH_DOMAINS,
     VERIFIER_RETRY_MAX,
 )
-from core import PromptNotConfiguredError
+from core import PromptNotConfiguredError, safe_format
 from schemas.common import columns_by_key, get_factual_keys_for_element, get_output_keys_for_element
 
 
@@ -209,7 +209,8 @@ def detect_presence(hotel: dict, category: str, context: dict) -> str:
       returns None → result becomes "unknown" (safe conservative default)
     - Non-dict payload — isinstance guard returns "unknown" immediately
     """
-    prompt = load_prompt("presence_detection.txt").format(
+    prompt = safe_format(
+        load_prompt("presence_detection.txt"),
         hotel_name=hotel.get("Nome account", ""),
         website=hotel.get("Sito Web", ""),
         context=context.get("filtered_text", ""),
@@ -331,7 +332,8 @@ def normalize_extracted_rows(schema_module, payload) -> list[dict]:
 
 
 def extract_rows(hotel: dict, category: str, context: dict, schema_module) -> dict:
-    prompt = load_prompt(f"{category}_extraction.txt").format(
+    prompt = safe_format(
+        load_prompt(f"{category}_extraction.txt"),
         hotel_name=hotel.get("Nome account", ""),
         website=hotel.get("Sito Web", ""),
         context=context.get("filtered_text", ""),

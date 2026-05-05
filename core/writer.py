@@ -13,7 +13,7 @@ from config import (
     WRITER_RETRY_MAX,
     WRITER_TEMPERATURE,
 )
-from core import PromptNotConfiguredError
+from core import PromptNotConfiguredError, safe_format
 from core.extractor import call_with_retry
 from schemas.common import get_editorial_keys_for_element
 
@@ -49,7 +49,8 @@ def write_editorial(row: dict, category_context: str, schema_module, hotel: dict
         return {}
 
     element_id = row["__element_id"]
-    prompt = load_prompt(f"{category}_writer.txt").format(
+    prompt = safe_format(
+        load_prompt(f"{category}_writer.txt"),
         hotel_name=hotel.get("Nome account", ""),
         website=hotel.get("Sito Web", ""),
         context=category_context,
