@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 from datetime import datetime
 from pathlib import Path
 
@@ -30,6 +31,31 @@ def _rows_for_export(checkpoint: dict) -> list[tuple[dict, dict]]:
             for row in entry.get("rows", []):
                 rows.append((entry, row))
     return rows
+
+
+def _export_paths(category: str) -> tuple[Path, Path]:
+    output_dir = Path(OUTPUT_DIR)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    date_suffix = datetime.now().strftime("%Y-%m-%d")
+    xlsx_path = output_dir / f"bwh-{category}-export-{date_suffix}.xlsx"
+    csv_path = output_dir / f"bwh-{category}-export-{date_suffix}.csv"
+    return xlsx_path, csv_path
+
+
+def export_category_csv(category: str) -> str:
+    checkpoint = load_checkpoint(category)
+    schema_module = load_schema(category)
+    columns = [column["key"] for column in schema_module.COLUMNS]
+    export_rows = _rows_for_export(checkpoint)
+    _, csv_path = _export_paths(category)
+
+    with csv_path.open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
+        writer.writeheader()
+        for _, row_data in export_rows:
+            writer.writerow({column: row_data.get(column) for column in columns})
+
+    return str(csv_path)
 
 
 def export_category(category: str) -> str:
@@ -79,11 +105,10 @@ def export_category(category: str) -> str:
                 width = min(60, max(width, len(str(cell.value)) + 2))
         sheet.column_dimensions[letter].width = width
 
-    output_dir = Path(OUTPUT_DIR)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    filename = output_dir / f"bwh-{category}-export-{datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    workbook.save(filename)
-    return str(filename)
+    xlsx_path, _ = _export_paths(category)
+    workbook.save(xlsx_path)
+    export_category_csv(category)
+    return str(xlsx_path)
 
 
 def export_all() -> list[str]:

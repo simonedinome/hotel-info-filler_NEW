@@ -1,0 +1,119 @@
+{
+  "98435": {
+    "status": "no-data",
+    "timestamp": "2026-05-05T13:42:42.052738Z",
+    "rows": [],
+    "has_category": false,
+    "source": "search",
+    "writer_failed": false
+  },
+  "98419": {
+    "status": "done",
+    "timestamp": "2026-05-05T13:50:16.183019Z",
+    "rows": [
+      {
+        "Property ID": "98419",
+        "Tracking Status": "Complete",
+        "Water Feature Type": null,
+        "OVERVIEW PAGE:  Resort-Style Pool Headline": null,
+        "OVERVIEW PAGE: Resort-Style Pool Description": null,
+        "Resort-Style Pool 'Local Tip'": null,
+        "EXPERIENCE PAGE: Resort-Style Pool Headline": null,
+        "EXPERIENCE PAGE: Resort-Style Pool Description": null,
+        "OVERVIEW PAGE: Rooftop Pool Headline": null,
+        "OVERVIEW PAGE: Rooftop Pool Description": null,
+        "OVERVIEW PAGE: Rooftop Pool Tip": null,
+        "EXPERIENCE PAGE: Rooftop Pool Headline": null,
+        "EXPERIENCE PAGE: Rooftop Pool Description": null,
+        "EXPERIENCE PAGE: Lazy River Headline": null,
+        "EXPERIENCE PAGE: Lazy River Description": null,
+        "EXPERIENCE PAGE: Waterpark Headline": null,
+        "EXPERIENCE PAGE: Waterpark Description": null
+      }
+    ],
+    "has_category": true,
+    "source": "search",
+    "writer_failed": false,
+    "raw_extraction": [
+      {
+        "__element_id": "resort_style_pool",
+        "__element_name": "Outdoor Pool",
+        "fields": {
+          "Water Feature Type": {
+            "value": [
+              "1. Resort-Style Pool Experience"
+            ],
+            "citation": "outdoor pool"
+          }
+        }
+      }
+    ],
+    "verified_extraction": [
+      {
+        "__element_id": "resort_style_pool",
+        "__element_name": "Outdoor Pool",
+        "fields": {
+          "Water Feature Type": {
+            "value": null,
+            "citation": null
+          }
+        }
+      }
+    ]
+  },
+  "98431": {
+    "status": "done",
+    "timestamp": "2026-05-05T14:50:07.292072Z",
+    "rows": [
+      {
+        "Property ID": "98431",
+        "Tracking Status": "Complete",
+        "Water Feature Type": null,
+        "OVERVIEW PAGE:  Resort-Style Pool Headline": null,
+        "OVERVIEW PAGE: Resort-Style Pool Description": null,
+        "Resort-Style Pool 'Local Tip'": null,
+        "EXPERIENCE PAGE: Resort-Style Pool Headline": null,
+        "EXPERIENCE PAGE: Resort-Style Pool Description": null,
+        "OVERVIEW PAGE: Rooftop Pool Headline": null,
+        "OVERVIEW PAGE: Rooftop Pool Description": null,
+        "OVERVIEW PAGE: Rooftop Pool Tip": null,
+        "EXPERIENCE PAGE: Rooftop Pool Headline": null,
+        "EXPERIENCE PAGE: Rooftop Pool Description": null,
+        "EXPERIENCE PAGE: Lazy River Headline": null,
+        "EXPERIENCE PAGE: Lazy River Description": null,
+        "EXPERIENCE PAGE: Waterpark Headline": null,
+        "EXPERIENCE PAGE: Waterpark Description": null
+      }
+    ],
+    "has_category": true,
+    "source": "search",
+    "writer_failed": false,
+    "raw_extraction": [
+      {
+        "__element_id": "resort_style_pool",
+        "__element_name": "Resort-Style Pool",
+        "fields": {
+          "Water Feature Type": {
+            "value": [
+              "2. Resort-Style Pool"
+            ],
+            "citation": "Outdoor Pool; Whirlpool; Hot Tub (worldhotels.com); Concediti un momento di relax nella nostra nuova piscina e nell'idromassaggio... Nel nostro ampio giardino potrete rilassarvi (alcaminetto.com)"
+          }
+        }
+      }
+    ],
+    "verified_extraction": [
+      {
+        "__element_id": "resort_style_pool",
+        "__element_name": "Resort-Style Pool",
+        "fields": {
+          "Water Feature Type": {
+            "value": null,
+            "citation": null
+          }
+        }
+      }
+    ],
+    "verification_source_text": ""
+  }
+}

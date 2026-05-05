@@ -17,13 +17,47 @@ PRESENCE_KEYWORDS = [
 ]
 
 COLUMNS = system_columns() + [
-    column("ON-SITE Only - SPA Experiences Available", "enum", multi_select=True),
+    column(
+        "ON-SITE Only - SPA Experiences Available",
+        "enum",
+        multi_select=True,
+        allowed_values=["1. No Spa On-site", "2. Full Service Spa", "3. Spa Services", "4. Thermal Spa"],
+    ),
     column("EXPERIENCE PAGE: External Link to Spa Website", "url"),
-    column("Facilities of the Spa", "enum", multi_select=True),
-    column("Massage Therapy Options", "enum", multi_select=True),
+    column(
+        "Facilities of the Spa",
+        "enum",
+        multi_select=True,
+        allowed_values=[
+            "Relaxation Lounge",
+            "4. Relaxation Lounge",
+            "Full-service Salon",
+            "Retail Boutique Outlet",
+            "Juice Bar",
+            "Bistro or In-spa Dining Options",
+            "Yoga Studio",
+        ],
+    ),
+    column(
+        "Massage Therapy Options",
+        "enum",
+        multi_select=True,
+        allowed_values=[
+            "Asian Inspired Therapies",
+            "Deep Tissue Massage",
+            "Reflexology",
+            "Signature or Custom Massage",
+            "Sports or Recovery Massage",
+        ],
+    ),
     column("Facial Treatments & Skincare Options", "enum", multi_select=True),
     column("Wellness Pkgs & Spa Journey Options", "enum", multi_select=True),
-    column("Wellness & Holistic Therapy Options", "enum", multi_select=True),
+    column(
+        "Wellness & Holistic Therapy Options",
+        "enum",
+        multi_select=True,
+        allowed_values=["Advanced Wellness and Recovery Therapies", "Sound Therapy"],
+    ),
     column("Beauty and Grooming Options", "enum", multi_select=True),
     column("Hydrotherapy and Thermal Experience Options", "enum", multi_select=True),
     column("Name of Spa", "factual"),

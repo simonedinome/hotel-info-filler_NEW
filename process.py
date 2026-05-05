@@ -156,7 +156,9 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
             return
 
         logger.log_step(2, "ROW EXTRACTION")
-        raw_rows = extract_rows(hotel, category, context, schema_module)
+        extraction_result = extract_rows(hotel, category, context, schema_module)
+        raw_rows = extraction_result["rows"]
+        verification_source_text = extraction_result.get("verification_source_text") or context["full_text"] or context["filtered_text"]
         extraction_used_search = context["use_search"]
         if not raw_rows:
             mark_no_data(
@@ -172,7 +174,10 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
         logger.log_step(3, "LLM VERIFICATION")
         verified_rows = verify_rows(
             raw_rows=raw_rows,
-            full_source_text=context["full_text"] or context["filtered_text"],
+            full_source_text=verification_source_text,
+            hotel=hotel,
+            category=category,
+            search_enabled=extraction_used_search,
             logger=logger,
         )
 
@@ -202,6 +207,7 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
             writer_failed=writer_failed,
             raw_extraction=raw_rows,
             verified_extraction=verified_rows,
+            verification_source_text=verification_source_text,
         )
         logger.success(f"Done - saved {len(final_rows)} rows to checkpoint")
     except Exception as exc:

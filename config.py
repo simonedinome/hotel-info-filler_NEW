@@ -1,14 +1,36 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from openpyxl import load_workbook
 
 
-GOOGLE_API_KEY = "YOUR_KEY_HERE"
-OPENROUTER_API_KEY = "YOUR_KEY_HERE"
+def load_dotenv_file(path: str = ".env") -> None:
+    env_path = Path(path)
+    if not env_path.exists():
+        return
 
-GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+load_dotenv_file()
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+
+
+#GOOGLE_API_KEY = "YOUR_KEY_HERE"
+#OPENROUTER_API_KEY = "YOUR_KEY_HERE"
+
+GEMINI_MODEL = "gemini-flash-latest"
 OPENROUTER_MODEL = "openai/gpt-4o"
 
 GEMINI_TEMPERATURE = 0.1
@@ -202,3 +224,12 @@ def load_hotels(path: str | None = None) -> list[dict]:
 
 def hotels_by_id(path: str | None = None) -> dict[str, dict]:
     return {hotel["Property ID"]: hotel for hotel in load_hotels(path)}
+
+def validate_api_keys() -> None:
+    missing = []
+    if not GOOGLE_API_KEY:
+        missing.append("GOOGLE_API_KEY")
+    if not OPENROUTER_API_KEY:
+        missing.append("OPENROUTER_API_KEY")
+    if missing:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")

@@ -17,15 +17,25 @@ PRESENCE_KEYWORDS = [
 ]
 
 COLUMNS = system_columns() + [
-    column("Does the hotel have a on-site restuarant?", "enum"),
+    column("Does the hotel have a on-site restuarant?", "enum", allowed_values=["Yes", "No"]),
     column("Restaurant Sequence - if multiple", "factual"),
     column("Restaurant Name", "factual"),
     column("Restaurant Type", "factual"),
     column("Phone Number", "factual"),
     column("Hours of Operation", "factual"),
     column("Fare / Cuisine Type", "factual"),
-    column("Dietary Menu Options", "enum", multi_select=True),
-    column("Meals Served", "enum", multi_select=True),
+    column(
+        "Dietary Menu Options",
+        "enum",
+        multi_select=True,
+        allowed_values=["1. Vegan", "2. Vegetarian", "3. Gluten Free", "4. None of the above"],
+    ),
+    column(
+        "Meals Served",
+        "enum",
+        multi_select=True,
+        allowed_values=["1. Breakfast", "2. Brunch", "3. Lunch", "4. Dinner"],
+    ),
     column("Restaurant Description", "editorial"),
     column("Book a Table", "url"),
     column("View Menu", "url"),

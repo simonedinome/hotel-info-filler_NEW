@@ -14,8 +14,26 @@ PRESENCE_KEYWORDS = [
 ]
 
 COLUMNS = system_columns() + [
-    column("Type of Golf Experience", "enum"),
-    column("Available Facilities", "enum", multi_select=True),
+    column(
+        "Type of Golf Experience",
+        "enum",
+        allowed_values=["On-site", "Nearby", "No golf onsite or near the hotel"],
+    ),
+    column(
+        "Available Facilities",
+        "enum",
+        multi_select=True,
+        allowed_values=[
+            "1. None Available",
+            "Pro Shop",
+            "Pro-Shop",
+            "Clubhouse",
+            "Practice Greens",
+            "Driving Range",
+            "Club Rentals",
+            "Cart Rental",
+        ],
+    ),
     column("Golf Course Address (if different from hotel)", "factual"),
     column("GOLF PAGE:  Facilities - Pro Shop  Headline", "editorial"),
     column("GOLF PAGE:  Facilities - Pro Shop Description", "editorial"),

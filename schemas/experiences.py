@@ -16,7 +16,23 @@ PRESENCE_KEYWORDS = [
 ]
 
 COLUMNS = system_columns(property_key="Property iD") + [
-    column("Select each experience your hotel offers", "enum", multi_select=True),
+    column(
+        "Select each experience your hotel offers",
+        "enum",
+        multi_select=True,
+        allowed_values=[
+            "Beach access",
+            "Casino",
+            "Co-working options",
+            "Culinary experience",
+            "Fishing",
+            "Live Entertainment",
+            "Marina",
+            "Outdoor Recreation",
+            "Rooftop Dining/Expr. Bars",
+            "Stargazing",
+        ],
+    ),
     column("Experience Page Description", "editorial"),
     column("EXPERIENCE PAGE: Beach Access Headline", "editorial"),
     column("EXPERIENCE PAGE: Beach Access Description", "editorial"),

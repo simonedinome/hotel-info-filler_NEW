@@ -19,6 +19,7 @@ Input sources:
 
 Output:
 - One Excel file per category
+- One CSV file per category
 - One checkpoint JSON file per category
 - Logs per run and per hotel/category
 
@@ -121,6 +122,7 @@ hotel-info-filler-new/
 |-- output/
 |   |-- checkpoint-*.json
 |   |-- bwh-*-export-YYYY-MM-DD.xlsx
+|   |-- bwh-*-export-YYYY-MM-DD.csv
 |   |-- run/
 |   |-- hotels/
 ```
@@ -200,15 +202,19 @@ Rules:
 - One extracted object per element
 - If a category has no elements, extraction returns an empty list
 - Repeated category-level fields may appear on multiple rows
+- Enum values must match the allowed values defined in the schema when present
+- When Google Search is used, capture grounded support text for downstream verification whenever available
 
 ### Step 3 - Field Verification
 - Model: Gemini 2.5 Flash
 - Function: `verify_rows()`
-- Search disabled
+- JSON response mode required
+- Search enabled when extraction used Google Search or when local source text is insufficient
 
 For every populated field in every extracted row:
 - Check whether the citation explicitly supports the value
 - If not, null out value and citation
+- Verifier must return structured JSON such as `{"verdict":"YES","reason":"..."}` or `{"verdict":"NO","reason":"..."}`
 
 ### Step 4 - Editorial Writing
 - Model: GPT-4o via OpenRouter
@@ -276,6 +282,10 @@ Each element contains:
 Repeated fields:
 - stay in `REPEATED_COLUMN_KEYS`
 - may be duplicated across multiple rows of the same hotel
+
+Enum fields:
+- should populate `allowed_values` whenever the CMS template defines a constrained set
+- extraction prompts must show allowed enum values to the model
 
 System fields:
 - `Property ID` or `Property iD`
@@ -355,6 +365,7 @@ Resume behavior:
 ## 10. Export Rules
 
 One Excel output per category.
+One CSV output per category.
 
 All categories export `rows` from checkpoints.
 There is no single-row category anymore.

@@ -1,0 +1,16 @@
+[98435 | POOL | 1/1] STEP 0 - LOAD CONTEXT
+[98435 | POOL | 1/1] STEP 1 - PRESENCE DETECTION
+[98435 | POOL | 1/1] ERROR: Category processing failed | No API key was provided. Please pass a valid API key. Learn how to create an API key at https://ai.google.dev/gemini-api/docs/api-key.
+[98435 | POOL | 1/1] STEP 0 - LOAD CONTEXT
+[98435 | POOL | 1/1] STEP 1 - PRESENCE DETECTION
+[98435 | POOL | 1/1] ERROR: Category processing failed | No API key was provided. Please pass a valid API key. Learn how to create an API key at https://ai.google.dev/gemini-api/docs/api-key.
+[98435 | POOL | 1/1] STEP 0 - LOAD CONTEXT
+[98435 | POOL | 1/1] STEP 1 - PRESENCE DETECTION
+[98435 | POOL | 1/1] ERROR: Category processing failed | 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-2.5-flash-preview-05-20 is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}
+[98435 | POOL | 1/1] STEP 0 - LOAD CONTEXT
+[98435 | POOL | 1/1] STEP 1 - PRESENCE DETECTION
+[98435 | POOL | 1/1] ERROR: Category processing failed | 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-2.5-flash-preview-05-20 is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}
+[98435 | POOL | 1/1] STEP 0 - LOAD CONTEXT
+[98435 | POOL | 1/1] STEP 1 - PRESENCE DETECTION
+[98435 | POOL | 1/1] WARNING: Presence remained unknown after search; treated as absent
+[98435 | POOL | 1/1] SUCCESS: Category absent, saved checkpoint with zero rows

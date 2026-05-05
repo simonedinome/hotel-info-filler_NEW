@@ -28,20 +28,21 @@ Extraction model:
 
 Return only valid JSON in this exact shape:
 
-{
+{{
   "rows": [
-    {
+    {{
       "element_id": "rooftop_pool",
       "element_name": "Rooftop Pool",
-      "fields": {
-        "Water Feature Type": {
+      "fields": {{
+        "Water Feature Type": {{
           "value": ["3. Rooftop Pool Experience"],
           "citation": "rooftop pool"
-        }
-      }
-    }
+        }}
+      }}
+    }}
   ]
-}
+}}
+
 
 If no elements are explicitly supported, return:
-{"rows":[]}
+{{"rows":[]}}

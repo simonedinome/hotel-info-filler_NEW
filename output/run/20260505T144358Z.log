@@ -1,0 +1,4 @@
+[98431 | POOL | 1/1] STEP 0 - LOAD CONTEXT
+[98431 | POOL | 1/1] STEP 1 - PRESENCE DETECTION
+[98431 | POOL | 1/1] STEP 2 - ROW EXTRACTION
+[98431 | POOL | 1/1] ERROR: Category processing failed | Expecting ',' delimiter: line 42 column 6 (char 1144)

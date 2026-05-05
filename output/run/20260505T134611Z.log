@@ -1,0 +1,4 @@
+[98419 | POOL | 1/1] STEP 0 - LOAD CONTEXT
+[98419 | POOL | 1/1] STEP 1 - PRESENCE DETECTION
+[98419 | POOL | 1/1] STEP 2 - ROW EXTRACTION
+[98419 | POOL | 1/1] ERROR: Category processing failed | '\n  "rows"'

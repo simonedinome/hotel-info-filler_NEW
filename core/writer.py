@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 
 import requests
@@ -15,6 +14,7 @@ from config import (
     WRITER_TEMPERATURE,
 )
 from core import PromptNotConfiguredError
+from core.extractor import call_with_retry
 from schemas.common import get_editorial_keys_for_element
 
 
@@ -66,32 +66,20 @@ def write_editorial(row: dict, category_context: str, schema_module, hotel: dict
         "response_format": {"type": "json_object"},
     }
 
-    rate_limit_attempts = 0
-    attempt = 1
-    while attempt <= WRITER_RETRY_MAX or rate_limit_attempts < 5:
-        try:
-            response = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=get_openrouter_headers(),
-                json=payload,
-                timeout=120,
-            )
-            response.raise_for_status()
-            content = response.json()["choices"][0]["message"]["content"]
-            return json.loads(content)
-        except Exception as exc:
-            is_rate_limit = "429" in str(exc)
-            if is_rate_limit:
-                rate_limit_attempts += 1
-            if logger is not None:
-                logger.log_writer_failed(rate_limit_attempts if is_rate_limit else attempt, str(exc))
-            if is_rate_limit:
-                if rate_limit_attempts >= 5:
-                    return {}
-                time.sleep(max(10, 2 ** rate_limit_attempts))
-                continue
-            if attempt >= WRITER_RETRY_MAX:
-                return {}
-            time.sleep(2 ** attempt)
-            attempt += 1
-    return {}
+    def run_call():
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=get_openrouter_headers(),
+            json=payload,
+            timeout=120,
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        return json.loads(content)
+
+    try:
+        return call_with_retry(run_call, max_attempts=WRITER_RETRY_MAX, logger=logger)
+    except Exception as exc:
+        if logger is not None:
+            logger.log_writer_failed(WRITER_RETRY_MAX, str(exc))
+        return {}

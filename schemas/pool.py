@@ -15,7 +15,19 @@ PRESENCE_KEYWORDS = [
 ]
 
 COLUMNS = system_columns() + [
-    column("Water Feature Type", "enum", multi_select=True),
+    column(
+        "Water Feature Type",
+        "enum",
+        multi_select=True,
+        allowed_values=[
+            "1. Resort-Style Pool Experience",
+            "2. Resort Style Pool",
+            "2. Resort-Style Pool",
+            "3. Rooftop Pool Experience",
+            "4. Lazy River",
+            "5. Waterpark",
+        ],
+    ),
     column("OVERVIEW PAGE:  Resort-Style Pool Headline", "editorial"),
     column("OVERVIEW PAGE: Resort-Style Pool Description", "editorial"),
     column("Resort-Style Pool 'Local Tip'", "editorial"),
