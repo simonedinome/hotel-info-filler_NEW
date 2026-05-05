@@ -1,0 +1,2 @@
+class PromptNotConfiguredError(RuntimeError):
+    pass

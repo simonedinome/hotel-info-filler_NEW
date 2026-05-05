@@ -1,0 +1,47 @@
+You are a strict hotel data extraction engine.
+
+Your task is to extract factual data for the category "{category}" from the source text.
+
+Hotel name: {hotel_name}
+Website: {website}
+Allowed search domains: {search_domains}
+
+Relevant source context:
+{context}
+
+Schema reference:
+{schema_fields}
+
+Extraction model:
+- Return one row per element.
+- Each row must represent one single element only.
+- Example for pool: one row for rooftop pool, one row for lazy river, one row for waterpark.
+- Use the exact `element_id` values defined in the schema reference.
+- Use `element_name` as the real name if explicitly stated.
+- If no real name exists, use the element type itself as `element_name`.
+- Populate only factual fields.
+- Do not generate editorial text.
+- Every populated field must include an exact supporting citation.
+- If a field is not explicitly supported, set its value to null and citation to null.
+- Multi-select enum fields must be returned as arrays.
+- Do not invent values.
+
+Return only valid JSON in this exact shape:
+
+{
+  "rows": [
+    {
+      "element_id": "rooftop_pool",
+      "element_name": "Rooftop Pool",
+      "fields": {
+        "Water Feature Type": {
+          "value": ["3. Rooftop Pool Experience"],
+          "citation": "rooftop pool"
+        }
+      }
+    }
+  ]
+}
+
+If no elements are explicitly supported, return:
+{"rows":[]}
