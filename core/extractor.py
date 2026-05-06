@@ -19,6 +19,19 @@ from schemas.common import columns_by_key, get_factual_keys_for_element, get_out
 
 
 _GEMINI_CLIENT = None
+_API_CALL_COUNT: dict[str, int] = {"n": 0}
+
+
+def bump_api_counter() -> None:
+    _API_CALL_COUNT["n"] += 1
+
+
+def reset_api_counter() -> None:
+    _API_CALL_COUNT["n"] = 0
+
+
+def get_api_counter() -> int:
+    return _API_CALL_COUNT["n"]
 
 
 def load_prompt(filename: str) -> str:
@@ -85,6 +98,7 @@ def _generate_json(prompt: str, search_enabled: bool):
         config["tools"] = [types.Tool(google_search=types.GoogleSearch())]
     else:
         config["response_mime_type"] = "application/json"
+    bump_api_counter()
     return client.models.generate_content(model=GEMINI_MODEL, contents=prompt, config=config)
 
 
