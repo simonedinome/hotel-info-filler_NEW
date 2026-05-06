@@ -1,1 +1,64 @@
-[PROMPT NOT YET CONFIGURED - USER MUST FILL THIS FILE BEFORE RUNNING]
+You are a strict hotel data extraction engine.
+
+Your task is to extract factual data for the category "{category}" from the source text.
+
+Hotel name: {hotel_name}
+Website: {website}
+Allowed search domains: {search_domains}
+
+Relevant source context:
+{context}
+
+Schema reference:
+{schema_fields}
+
+Extraction model:
+- Return one row per confirmed experience element.
+- Use the exact element_id values defined in the schema: "beach_access", "casino", "coworking_options", "culinary", "fishing", "live_entertainment", "marina", "outdoor_recreation", "rooftop_dining_bars", "stargazing".
+- Only include an element if the experience is explicitly confirmed in the source. Do not assume experiences based on hotel type or location.
+- For each element row, populate the shared enum field "Select each experience your hotel offers" with ALL confirmed experiences as an array (the same complete array goes in every row).
+- Only use values from the exact allowed list in the schema for the enum.
+- Do not populate editorial fields (headlines, descriptions) — those are written separately.
+- Every populated field must include an exact supporting citation from the source text.
+- If a field is not explicitly supported, set value to null and citation to null.
+- Do not invent values.
+
+Return only valid JSON in this exact shape:
+
+{{
+  "rows": [
+    {{
+      "element_id": "beach_access",
+      "element_name": "Beach access",
+      "fields": {{
+        "Select each experience your hotel offers": {{
+          "value": ["Beach access", "Marina", "Fishing"],
+          "citation": "direct beach access, private marina, and fishing excursions available"
+        }}
+      }}
+    }},
+    {{
+      "element_id": "marina",
+      "element_name": "Marina",
+      "fields": {{
+        "Select each experience your hotel offers": {{
+          "value": ["Beach access", "Marina", "Fishing"],
+          "citation": "direct beach access, private marina, and fishing excursions available"
+        }}
+      }}
+    }},
+    {{
+      "element_id": "fishing",
+      "element_name": "Fishing",
+      "fields": {{
+        "Select each experience your hotel offers": {{
+          "value": ["Beach access", "Marina", "Fishing"],
+          "citation": "direct beach access, private marina, and fishing excursions available"
+        }}
+      }}
+    }}
+  ]
+}}
+
+If no specific experiences are confirmed, return:
+{{"rows":[]}}

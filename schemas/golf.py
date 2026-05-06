@@ -26,7 +26,6 @@ COLUMNS = system_columns() + [
         allowed_values=[
             "1. None Available",
             "Pro Shop",
-            "Pro-Shop",
             "Clubhouse",
             "Practice Greens",
             "Driving Range",
@@ -65,6 +64,24 @@ COLUMNS = system_columns() + [
     column("EXPERIENCE PAGE: Golf Headline", "editorial"),
     column("EXPERIENCE PAGE: Golf Description", "editorial"),
     column("EXPERIENCE PAGE: Link to Golf Course Website", "url"),
+]
+
+REPEATED_COLUMN_KEYS = [
+    "Type of Golf Experience",
+    "Available Facilities",
+    "Golf Course Address (if different from hotel)",
+    "GOLF PAGE: Golf Headline",
+    "GOLF PAGE: Golf Description",
+    "GOLF PAGE: Golf Feature Headline",
+    "GOLF PAGE: Golf Feature Description",
+    "GOLF PAGE: Quote",
+    "GOLF PAGE: Attribute",
+    "OVERVIEW PAGE: Golf Headline",
+    "OVERVIEW PAGE: Golf Description",
+    "OVERVIEW PAGE: Golf Tip",
+    "EXPERIENCE PAGE: Golf Headline",
+    "EXPERIENCE PAGE: Golf Description",
+    "EXPERIENCE PAGE: Link to Golf Course Website",
 ]
 
 ELEMENTS = {

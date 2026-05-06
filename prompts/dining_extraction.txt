@@ -1,1 +1,95 @@
-[PROMPT NOT YET CONFIGURED - USER MUST FILL THIS FILE BEFORE RUNNING]
+You are a strict hotel data extraction engine.
+
+Your task is to extract factual data for the category "{category}" from the source text.
+
+Hotel name: {hotel_name}
+Website: {website}
+Allowed search domains: {search_domains}
+
+Relevant source context:
+{context}
+
+Schema reference:
+{schema_fields}
+
+Extraction model:
+- Return one row per dining venue (element_id: "dining_venue").
+- Each row represents one distinct restaurant, bar, café, or food venue.
+- Use "element_name" as the real name of the venue (e.g. "The Ocean Grill", "Lobby Bar").
+- "Does the hotel have a on-site restuarant?" must be "Yes" if at least one venue is confirmed, "No" only if the source explicitly states there is no on-site dining.
+- "Restaurant Sequence - if multiple" is a plain integer (1, 2, 3…) indicating order when multiple venues exist.
+- For enum fields, only use exact values from the allowed list in the schema.
+- Multi-select enum fields must be returned as arrays.
+- For URL fields (Book a Table, View Menu, Visit Website, Image URL), only populate if an explicit URL appears in the source text.
+- Do not populate "Restaurant Description" or any editorial fields — those are written separately.
+- Every populated field must include an exact supporting citation from the source text.
+- If a field is not explicitly supported, set value to null and citation to null.
+- Do not invent values.
+
+Return only valid JSON in this exact shape:
+
+{{
+  "rows": [
+    {{
+      "element_id": "dining_venue",
+      "element_name": "The Ocean Grill",
+      "fields": {{
+        "Does the hotel have a on-site restuarant?": {{
+          "value": "Yes",
+          "citation": "on-site restaurant"
+        }},
+        "Restaurant Sequence - if multiple": {{
+          "value": "1",
+          "citation": "first restaurant listed"
+        }},
+        "Restaurant Name": {{
+          "value": "The Ocean Grill",
+          "citation": "The Ocean Grill"
+        }},
+        "Restaurant Type": {{
+          "value": "Restaurant",
+          "citation": "full-service restaurant"
+        }},
+        "Phone Number": {{
+          "value": null,
+          "citation": null
+        }},
+        "Hours of Operation": {{
+          "value": "7:00 AM – 10:00 PM",
+          "citation": "open daily from 7:00 AM to 10:00 PM"
+        }},
+        "Fare / Cuisine Type": {{
+          "value": "Seafood",
+          "citation": "fresh seafood specialties"
+        }},
+        "Dietary Menu Options": {{
+          "value": ["2. Vegetarian", "3. Gluten Free"],
+          "citation": "vegetarian and gluten-free options available"
+        }},
+        "Meals Served": {{
+          "value": ["3. Lunch", "4. Dinner"],
+          "citation": "open for lunch and dinner service"
+        }},
+        "Book a Table": {{
+          "value": null,
+          "citation": null
+        }},
+        "View Menu": {{
+          "value": null,
+          "citation": null
+        }},
+        "Visit Website": {{
+          "value": null,
+          "citation": null
+        }},
+        "Image URL": {{
+          "value": null,
+          "citation": null
+        }}
+      }}
+    }}
+  ]
+}}
+
+If no dining venues are confirmed, return:
+{{"rows":[]}}
