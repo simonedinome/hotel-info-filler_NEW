@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+FIELD_TYPES = ("system", "factual", "enum", "editorial", "url", "email")
+
 
 def column(
     key: str,
@@ -74,4 +76,14 @@ def get_factual_keys_for_element(schema_module, element_id: str) -> list[str]:
         column_item["key"]
         for column_item in schema_module.COLUMNS
         if column_item["field_type"] not in {"editorial", "system"} and column_item["key"] in keys
+    ]
+
+
+def get_verifiable_keys_for_element(schema_module, element_id: str) -> list[str]:
+    """Return only factual-typed keys for an element — the subset the verifier should check."""
+    keys = set(get_output_keys_for_element(schema_module, element_id))
+    return [
+        column_item["key"]
+        for column_item in schema_module.COLUMNS
+        if column_item["field_type"] == "factual" and column_item["key"] in keys
     ]

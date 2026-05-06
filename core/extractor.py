@@ -251,10 +251,14 @@ def format_schema_for_prompt(schema_module) -> str:
 
 def _normalize_field_payload(field_value):
     if isinstance(field_value, dict):
-        return {
+        payload = {
             "value": field_value.get("value"),
             "citation": field_value.get("citation"),
         }
+        confidence = field_value.get("confidence")
+        if confidence is not None:
+            payload["confidence"] = confidence
+        return payload
     return {"value": field_value, "citation": None}
 
 
@@ -323,6 +327,7 @@ def normalize_extracted_rows(schema_module, payload) -> list[dict]:
             normalized["value"] = _sanitize_enum_value(column_def, normalized["value"])
             if normalized["value"] in (None, [], ""):
                 normalized["citation"] = None
+                normalized.pop("confidence", None)
             else:
                 # T-05: clean citation before it reaches the verifier
                 normalized["citation"] = _normalize_citation(normalized.get("citation"))
