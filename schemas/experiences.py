@@ -21,16 +21,26 @@ COLUMNS = system_columns(property_key="Property iD") + [
         "enum",
         multi_select=True,
         allowed_values=[
-            "Beach access",
+            "Resort-style pool",
+            "Rooftop pool experience",
+            "On-property golf",
+            "Wellness center",
+            "Spa",
             "Casino",
-            "Co-working options",
-            "Culinary experience",
-            "Fishing",
-            "Live Entertainment",
             "Marina",
-            "Outdoor Recreation",
-            "Rooftop Dining/Expr. Bars",
+            "Culinary experience",
             "Stargazing",
+            "Live entertainment",
+            "Rooftop dining or bars",
+            "Beach access",
+            "Fishing",
+            "On-site tennis",
+            "On-site basketball",
+            "On-site pickleball",
+            "On-site racquetball",
+            "On-site Squash",
+            "On-site volleyball",
+            "No experiences at this hotel"
         ],
     ),
     column("Experience Page Description", "editorial"),
@@ -55,6 +65,7 @@ COLUMNS = system_columns(property_key="Property iD") + [
     column("EXPERIENCE PAGE: Stargazing Headline", "editorial"),
     column("EXPERIENCE PAGE: Stargazing Description", "editorial"),
 ]
+
 
 REPEATED_COLUMN_KEYS = ["Select each experience your hotel offers", "Experience Page Description"]
 

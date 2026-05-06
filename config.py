@@ -46,8 +46,7 @@ WRITER_RETRY_MAX = 3
 SEARCH_DOMAINS = [
     "{hotel_website}",
     "bestwestern.it",
-    "book.bestwestern.it",
-    "worldhotels.com",
+    "book.bestwestern.it"
 ]
 
 PAGES_DIR = "pages"

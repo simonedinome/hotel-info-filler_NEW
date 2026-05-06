@@ -101,6 +101,7 @@ COLUMNS = system_columns(tracking_key="Tracking status") + [
     column("MEETINGS & EVENTS PAGE: Event Space Description", "editorial"),
 ]
 
+
 REPEATED_COLUMN_KEYS = [
     "Meetings and Events facilities & space options",
     "Amenities & Services available",

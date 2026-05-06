@@ -11,7 +11,8 @@ PRESENCE_KEYWORDS = [
     "water",
     "piscina",
     "nuoto",
-    "vasca",
+    "nuota",
+    "nuotare"
 ]
 
 COLUMNS = system_columns() + [
@@ -20,11 +21,13 @@ COLUMNS = system_columns() + [
         "enum",
         multi_select=True,
         allowed_values=[
-            "1. Resort-Style Pool Experience",  # UNVERIFIED - inferred from element label pattern
-            "2. Resort-Style Pool",  # hyphenated form kept; non-hyphenated "2. Resort Style Pool" removed as duplicate
-            "3. Rooftop Pool Experience",  # UNVERIFIED - inferred from element label pattern
-            "4. Lazy River",  # UNVERIFIED - inferred from element label
-            "5. Waterpark",  # UNVERIFIED - inferred from element label
+            "1. Resort-Style Pool Experience",
+            "2. Resort Style Pool",
+            "2. Resort-Style Pool",
+            "3. Rooftop Pool Experience",
+            "4. Lazy River",
+            "5. Waterpark",
+            "6. None of the Above"
         ],
     ),
     column("OVERVIEW PAGE:  Resort-Style Pool Headline", "editorial"),

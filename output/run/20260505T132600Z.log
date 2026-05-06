@@ -1,3 +1,0 @@
-[98435 | POOL | 1/1] STEP 0 - LOAD CONTEXT
-[98435 | POOL | 1/1] STEP 1 - PRESENCE DETECTION
-[98435 | POOL | 1/1] ERROR: Category processing failed | No API key was provided. Please pass a valid API key. Learn how to create an API key at https://ai.google.dev/gemini-api/docs/api-key.
