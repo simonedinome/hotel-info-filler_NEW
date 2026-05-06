@@ -26,6 +26,7 @@ COLUMNS = system_columns() + [
             "3. Rooftop Pool Experience",
             "4. Lazy River",
             "5. Waterpark",
+            "6. None of the Above"
         ],
     ),
     column("OVERVIEW PAGE:  Resort-Style Pool Headline", "editorial"),

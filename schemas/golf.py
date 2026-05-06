@@ -17,7 +17,7 @@ COLUMNS = system_columns() + [
     column(
         "Type of Golf Experience",
         "enum",
-        allowed_values=["On-site", "Nearby", "No golf onsite or near the hotel"],
+        allowed_values=["On-site", "Nearby","Adjacent", "No golf onsite or near the hotel"],
     ),
     column(
         "Available Facilities",
