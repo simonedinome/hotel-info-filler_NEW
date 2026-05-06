@@ -346,12 +346,19 @@ def extract_rows(hotel: dict, category: str, context: dict, schema_module) -> di
         schema_fields=format_schema_for_prompt(schema_module),
         search_domains=", ".join(_search_domains(hotel)),
     )
-    response = call_with_retry(
-        lambda: _generate_json(prompt, search_enabled=context.get("use_search", False)),
+    search_enabled = context.get("use_search", False)
+
+    def _generate_parse_and_ground():
+        response = _generate_json(prompt, search_enabled=search_enabled)
+        text = _extract_text(response)
+        parsed = _parse_json_response_text(text)
+        grounding = _extract_grounding_segments(response)
+        return parsed, grounding
+
+    payload, segments = call_with_retry(
+        _generate_parse_and_ground,
         max_attempts=VERIFIER_RETRY_MAX,
     )
-    payload = _parse_json_response_text(_extract_text(response))
-    segments = _extract_grounding_segments(response)
     return {
         "rows": normalize_extracted_rows(schema_module, payload),
         "verification_source_text": "\n".join(segments),
