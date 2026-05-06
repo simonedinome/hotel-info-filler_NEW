@@ -1,1 +1,116 @@
-[PROMPT NOT YET CONFIGURED - USER MUST FILL THIS FILE BEFORE RUNNING]
+You are a strict hotel data extraction engine.
+
+Your task is to extract factual data for the category "{category}" from the source text.
+
+Hotel name: {hotel_name}
+Website: {website}
+Allowed search domains: {search_domains}
+
+Relevant source context:
+{context}
+
+Schema reference:
+{schema_fields}
+
+Extraction model:
+- Return one row per spa element that is confirmed present.
+- Always include a "spa_experience" row if any spa or wellness presence is detected.
+- Include separate rows for each confirmed sub-facility: "relaxation_lounge", "full_service_salon", "retail_boutique", "juice_bar", "bistro_in_spa_dining", "yoga_studio".
+- Use the exact element_id values from the schema.
+- Use "element_name" as the real name of the spa or facility (e.g. "The Serenity Spa", "Glow Salon").
+- For the "spa_experience" element, populate all available factual fields: spa type, facilities, therapy options, beauty options, hydrotherapy options, wellness packages, spa name, address.
+- For sub-facility elements, populate only their name and external link fields.
+- For enum fields, only use exact values from the allowed list in the schema.
+- Multi-select enum fields must be returned as arrays.
+- Do not populate editorial fields (headlines, descriptions, quotes).
+- Every populated field must include an exact supporting citation from the source text.
+- If a field is not explicitly supported, set value to null and citation to null.
+- Do not invent values.
+
+Return only valid JSON in this exact shape:
+
+{{
+  "rows": [
+    {{
+      "element_id": "spa_experience",
+      "element_name": "The Serenity Spa",
+      "fields": {{
+        "ON-SITE Only - SPA Experiences Available": {{
+          "value": ["2. Full Service Spa"],
+          "citation": "full-service spa on-site"
+        }},
+        "EXPERIENCE PAGE: External Link to Spa Website": {{
+          "value": null,
+          "citation": null
+        }},
+        "Facilities of the Spa": {{
+          "value": ["4. Relaxation Lounge", "6. Yoga Studio"],
+          "citation": "relaxation lounge and yoga studio available"
+        }},
+        "Massage Therapy Options": {{
+          "value": ["Swedish Massage", "Hot Stone Massage"],
+          "citation": "Swedish and hot stone massages offered"
+        }},
+        "Facial Treatments & Skincare Options": {{
+          "value": ["Hydrating Facial", "Custom or Personalized Facial"],
+          "citation": "hydrating and custom facials"
+        }},
+        "Wellness Pkgs & Spa Journey Options": {{
+          "value": ["Half Day or Full Day Spa Experiences"],
+          "citation": "half-day and full-day spa packages"
+        }},
+        "Wellness & Holistic Therapy Options": {{
+          "value": ["1. None"],
+          "citation": "no holistic therapies listed"
+        }},
+        "Beauty and Grooming Options": {{
+          "value": ["Manicure and Pedicure"],
+          "citation": "manicure and pedicure services"
+        }},
+        "Hydrotherapy and Thermal Experience Options": {{
+          "value": ["Steam Rooms and Saunas"],
+          "citation": "steam room and sauna facilities"
+        }},
+        "Name of Spa": {{
+          "value": "The Serenity Spa",
+          "citation": "The Serenity Spa"
+        }},
+        "Address of Spa Facilities if different than hotel": {{
+          "value": null,
+          "citation": null
+        }}
+      }}
+    }},
+    {{
+      "element_id": "relaxation_lounge",
+      "element_name": "Relaxation Lounge",
+      "fields": {{
+        "Name of Relaxation Lounge": {{
+          "value": "The Quiet Room",
+          "citation": "The Quiet Room relaxation lounge"
+        }},
+        "External Link to Relaxation Lounge": {{
+          "value": null,
+          "citation": null
+        }}
+      }}
+    }},
+    {{
+      "element_id": "yoga_studio",
+      "element_name": "Yoga Studio",
+      "fields": {{
+        "Name of Yoga Studio": {{
+          "value": null,
+          "citation": null
+        }},
+        "External Link to Yoga Studio": {{
+          "value": null,
+          "citation": null
+        }}
+      }}
+    }}
+  ]
+}}
+
+If no spa or wellness offering is found, return:
+{{"rows":[]}}
