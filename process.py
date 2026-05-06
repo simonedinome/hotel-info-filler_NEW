@@ -31,6 +31,15 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="BWH Content Extractor")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    crawl_parser = subparsers.add_parser("crawl", help="Crawl a single hotel website via Firecrawl")
+    crawl_parser.add_argument("property_id")
+    crawl_parser.add_argument("--depth", type=int, default=None, help="Max crawl depth (default: config FIRECRAWL_MAX_DEPTH)")
+    crawl_parser.add_argument("--limit", type=int, default=None, help="Max pages (default: config FIRECRAWL_PAGE_LIMIT)")
+
+    crawl_all_parser = subparsers.add_parser("crawl-all", help="Crawl all hotels with a website via Firecrawl")
+    crawl_all_parser.add_argument("--depth", type=int, default=None)
+    crawl_all_parser.add_argument("--limit", type=int, default=None)
+
     process_parser = subparsers.add_parser("process")
     process_parser.add_argument("property_id")
     process_parser.add_argument("--categories", nargs="+", choices=ALL_CATEGORIES, default=None)
@@ -417,6 +426,29 @@ def main() -> None:
     categories = selected_categories(getattr(args, "categories", None))
     hotels = load_hotels()
     hotels_index = hotels_by_id()
+
+    if args.command == "crawl":
+        from core.crawler import crawl_hotel
+        from config import FIRECRAWL_MAX_DEPTH, FIRECRAWL_PAGE_LIMIT
+        hotel = hotels_index.get(args.property_id)
+        if hotel is None:
+            raise SystemExit(f"Property ID not found: {args.property_id}")
+        crawl_hotel(
+            hotel,
+            depth=args.depth if args.depth is not None else FIRECRAWL_MAX_DEPTH,
+            page_limit=args.limit if args.limit is not None else FIRECRAWL_PAGE_LIMIT,
+        )
+        return
+
+    if args.command == "crawl-all":
+        from core.crawler import crawl_all_hotels
+        from config import FIRECRAWL_MAX_DEPTH, FIRECRAWL_PAGE_LIMIT
+        crawl_all_hotels(
+            hotels,
+            depth=args.depth if args.depth is not None else FIRECRAWL_MAX_DEPTH,
+            page_limit=args.limit if args.limit is not None else FIRECRAWL_PAGE_LIMIT,
+        )
+        return
 
     if args.command == "check-prompts":
         missing = check_prompts()

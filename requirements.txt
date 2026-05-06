@@ -1,3 +1,4 @@
+firecrawl-py>=1.0.0
 google-genai>=1.0.0
 openpyxl>=3.1.0
 requests>=2.31.0
