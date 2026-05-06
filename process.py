@@ -213,6 +213,7 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
             full_source_text=verification_source_text,
             hotel=hotel,
             category=category,
+            schema_module=schema_module,
             search_enabled=extraction_used_search,
             logger=logger,
         )

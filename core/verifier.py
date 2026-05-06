@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from config import GEMINI_MODEL, VERIFIER_RETRY_MAX
 from core.extractor import _extract_text, _search_domains, call_with_retry, get_gemini_client
+from schemas.common import columns_by_key
 
 
 def _verification_prompt(field_name: str, value, citation: str, source_text: str, hotel: dict, category: str, search_enabled: bool) -> str:
@@ -30,15 +31,27 @@ def _verification_prompt(field_name: str, value, citation: str, source_text: str
     )
 
 
-def verify_rows(raw_rows: list[dict], full_source_text: str, hotel: dict, category: str, search_enabled: bool = False, logger=None) -> list[dict]:
+def verify_rows(raw_rows: list[dict], full_source_text: str, hotel: dict, category: str, schema_module, search_enabled: bool = False, logger=None) -> list[dict]:
     client, types = get_gemini_client()
     source_text = full_source_text or ""
+    schema_columns = columns_by_key(schema_module.COLUMNS)
     verified_rows = deepcopy(raw_rows)
     for row in verified_rows:
         for field_name, payload in row.get("fields", {}).items():
             value = payload.get("value")
             citation = payload.get("citation")
             if value in (None, [], ""):
+                continue
+
+            col_def = schema_columns.get(field_name, {})
+            field_type = col_def.get("field_type", "factual")
+            if field_type != "factual":
+                if field_type == "enum":
+                    if logger is not None:
+                        logger.log_enum_confidence(field_name, value, payload.get("confidence"))
+                else:
+                    if logger is not None:
+                        logger.info(f"Skipping verification for {field_type} field: {field_name}")
                 continue
 
             def run_call():

@@ -251,10 +251,14 @@ def format_schema_for_prompt(schema_module) -> str:
 
 def _normalize_field_payload(field_value):
     if isinstance(field_value, dict):
-        return {
+        payload = {
             "value": field_value.get("value"),
             "citation": field_value.get("citation"),
         }
+        confidence = field_value.get("confidence")
+        if confidence is not None:
+            payload["confidence"] = confidence
+        return payload
     return {"value": field_value, "citation": None}
 
 
@@ -323,6 +327,7 @@ def normalize_extracted_rows(schema_module, payload) -> list[dict]:
             normalized["value"] = _sanitize_enum_value(column_def, normalized["value"])
             if normalized["value"] in (None, [], ""):
                 normalized["citation"] = None
+                normalized.pop("confidence", None)
             else:
                 # T-05: clean citation before it reaches the verifier
                 normalized["citation"] = _normalize_citation(normalized.get("citation"))
@@ -341,12 +346,19 @@ def extract_rows(hotel: dict, category: str, context: dict, schema_module) -> di
         schema_fields=format_schema_for_prompt(schema_module),
         search_domains=", ".join(_search_domains(hotel)),
     )
-    response = call_with_retry(
-        lambda: _generate_json(prompt, search_enabled=context.get("use_search", False)),
+    search_enabled = context.get("use_search", False)
+
+    def _generate_parse_and_ground():
+        response = _generate_json(prompt, search_enabled=search_enabled)
+        text = _extract_text(response)
+        parsed = _parse_json_response_text(text)
+        grounding = _extract_grounding_segments(response)
+        return parsed, grounding
+
+    payload, segments = call_with_retry(
+        _generate_parse_and_ground,
         max_attempts=VERIFIER_RETRY_MAX,
     )
-    payload = _parse_json_response_text(_extract_text(response))
-    segments = _extract_grounding_segments(response)
     return {
         "rows": normalize_extracted_rows(schema_module, payload),
         "verification_source_text": "\n".join(segments),

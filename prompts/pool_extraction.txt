@@ -22,8 +22,9 @@ Extraction model:
 - Populate only factual fields.
 - Do not generate editorial text.
 - Every populated field must include an exact supporting citation.
-- If a field is not explicitly supported, set its value to null and citation to null.
+- Omit fields with null values entirely from the output — only include a field key if its value is explicitly supported and non-null.
 - Multi-select enum fields must be returned as arrays.
+- For enum fields, include a confidence score between 0.0 and 1.0 reflecting how explicitly the source text supports this classification. Use 1.0 only if the exact category is stated. Use 0.5–0.8 for clear but indirect evidence. Use below 0.5 for inferred or weak evidence.
 - Do not invent values.
 
 Return only valid JSON in this exact shape:
@@ -36,7 +37,8 @@ Return only valid JSON in this exact shape:
       "fields": {{
         "Water Feature Type": {{
           "value": ["3. Rooftop Pool Experience"],
-          "citation": "rooftop pool"
+          "citation": "rooftop pool",
+          "confidence": 0.95
         }}
       }}
     }}

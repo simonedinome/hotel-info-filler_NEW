@@ -24,7 +24,7 @@ Extraction model:
 - Multi-select enum fields must be returned as arrays.
 - Do not populate editorial fields (headlines, descriptions, quotes).
 - Every populated field must include an exact supporting citation from the source text.
-- If a field is not explicitly supported, set value to null and citation to null.
+- Omit fields with null values entirely from the output — only include a field key if its value is explicitly supported and non-null.
 - Do not invent values.
 
 Return only valid JSON in this exact shape:
@@ -38,10 +38,6 @@ Return only valid JSON in this exact shape:
         "ON-SITE Only - SPA Experiences Available": {{
           "value": ["2. Full Service Spa"],
           "citation": "full-service spa on-site"
-        }},
-        "EXPERIENCE PAGE: External Link to Spa Website": {{
-          "value": null,
-          "citation": null
         }},
         "Facilities of the Spa": {{
           "value": ["4. Relaxation Lounge", "6. Yoga Studio"],
@@ -74,10 +70,6 @@ Return only valid JSON in this exact shape:
         "Name of Spa": {{
           "value": "The Serenity Spa",
           "citation": "The Serenity Spa"
-        }},
-        "Address of Spa Facilities if different than hotel": {{
-          "value": null,
-          "citation": null
         }}
       }}
     }},
@@ -88,26 +80,13 @@ Return only valid JSON in this exact shape:
         "Name of Relaxation Lounge": {{
           "value": "The Quiet Room",
           "citation": "The Quiet Room relaxation lounge"
-        }},
-        "External Link to Relaxation Lounge": {{
-          "value": null,
-          "citation": null
         }}
       }}
     }},
     {{
       "element_id": "yoga_studio",
       "element_name": "Yoga Studio",
-      "fields": {{
-        "Name of Yoga Studio": {{
-          "value": null,
-          "citation": null
-        }},
-        "External Link to Yoga Studio": {{
-          "value": null,
-          "citation": null
-        }}
-      }}
+      "fields": {{}}
     }}
   ]
 }}

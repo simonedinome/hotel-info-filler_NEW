@@ -190,7 +190,7 @@ Expected extraction shape:
       "element_id": "rooftop_pool",
       "element_name": "Rooftop Pool",
       "fields": {
-        "Water Feature Type": {"value": ["3. Rooftop Pool Experience"], "citation": "..."},
+        "Water Feature Type": {"value": ["3. Rooftop Pool Experience"], "citation": "...", "confidence": 0.95},
         "OVERVIEW PAGE: Rooftop Pool Headline": {"value": "...", "citation": "..."}
       }
     }
@@ -203,6 +203,7 @@ Rules:
 - If a category has no elements, extraction returns an empty list
 - Repeated category-level fields may appear on multiple rows
 - Enum values must match the allowed values defined in the schema when present
+- Enum fields must include a `confidence` score (0.0–1.0) reflecting how explicitly the source supports the classification. 1.0 = exact match stated; 0.5–0.8 = clear but indirect; below 0.5 = inferred or weak. Confidence is a relative monitoring signal, not a calibrated probability.
 - When Google Search is used, capture grounded support text for downstream verification whenever available
 
 ### Step 3 - Field Verification
@@ -211,7 +212,12 @@ Rules:
 - JSON response mode required
 - Search enabled when extraction used Google Search or when local source text is insufficient
 
-For every populated field in every extracted row:
+Verification is applied only to `factual` fields.
+- `enum` fields are skipped — the confidence score from extraction is logged instead via `log_enum_confidence()`.
+- `url` and `email` fields are skipped without logging confidence.
+- `editorial` and `system` fields are never verified.
+
+For every populated `factual` field in every extracted row:
 - Check whether the citation explicitly supports the value
 - If not, null out value and citation
 - Verifier must return structured JSON such as `{"verdict":"YES","reason":"..."}` or `{"verdict":"NO","reason":"..."}`
@@ -414,6 +420,7 @@ python process.py check-prompts
 - Do not fill quote fields with generated text
 - Do not create placeholder absence rows
 - Do not use `Meeting & Events Capacity Details.xlsx`
+- Do not export confidence scores to Excel or CSV output. Confidence is a monitoring signal only — it lives in logs and in `raw_extraction`/`verified_extraction` inside the checkpoint JSON, never in the `rows` objects used for export.
 
 ---
 

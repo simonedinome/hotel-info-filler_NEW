@@ -22,7 +22,7 @@ Extraction model:
 - For sub-facility element rows, the fields object may be empty ({{}}) since editorial is written separately.
 - Do not populate any editorial fields (headlines, descriptions, quotes, tips).
 - Every populated field must include an exact supporting citation from the source text.
-- If a field is not explicitly supported, set value to null and citation to null.
+- Omit fields with null values entirely from the output — only include a field key if its value is explicitly supported and non-null.
 - Do not invent values.
 
 Return only valid JSON in this exact shape:
@@ -40,10 +40,6 @@ Return only valid JSON in this exact shape:
         "Available Facilities": {{
           "value": ["Pro Shop", "Clubhouse", "Driving Range"],
           "citation": "pro shop, clubhouse, and driving range on property"
-        }},
-        "Golf Course Address (if different from hotel)": {{
-          "value": null,
-          "citation": null
         }}
       }}
     }},

@@ -23,7 +23,7 @@ Extraction model:
 - For URL fields (Book a Table, View Menu, Visit Website, Image URL), only populate if an explicit URL appears in the source text.
 - Do not populate "Restaurant Description" or any editorial fields — those are written separately.
 - Every populated field must include an exact supporting citation from the source text.
-- If a field is not explicitly supported, set value to null and citation to null.
+- Omit fields with null values entirely from the output — only include a field key if its value is explicitly supported and non-null.
 - Do not invent values.
 
 Return only valid JSON in this exact shape:
@@ -50,10 +50,6 @@ Return only valid JSON in this exact shape:
           "value": "Restaurant",
           "citation": "full-service restaurant"
         }},
-        "Phone Number": {{
-          "value": null,
-          "citation": null
-        }},
         "Hours of Operation": {{
           "value": "7:00 AM – 10:00 PM",
           "citation": "open daily from 7:00 AM to 10:00 PM"
@@ -69,22 +65,6 @@ Return only valid JSON in this exact shape:
         "Meals Served": {{
           "value": ["3. Lunch", "4. Dinner"],
           "citation": "open for lunch and dinner service"
-        }},
-        "Book a Table": {{
-          "value": null,
-          "citation": null
-        }},
-        "View Menu": {{
-          "value": null,
-          "citation": null
-        }},
-        "Visit Website": {{
-          "value": null,
-          "citation": null
-        }},
-        "Image URL": {{
-          "value": null,
-          "citation": null
         }}
       }}
     }}

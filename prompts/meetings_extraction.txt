@@ -23,7 +23,7 @@ Extraction model:
 - Multi-select enum fields must be returned as arrays.
 - Do not populate editorial fields (headlines, descriptions, quotes).
 - Every populated field must include an exact supporting citation from the source text.
-- If a field is not explicitly supported, set value to null and citation to null.
+- Omit fields with null values entirely from the output — only include a field key if its value is explicitly supported and non-null.
 - Do not invent values.
 
 Return only valid JSON in this exact shape:
@@ -49,58 +49,6 @@ Return only valid JSON in this exact shape:
         "Enter hotel email address to send inquiries": {{
           "value": "events@hotel.com",
           "citation": "events@hotel.com"
-        }},
-        "FAQ #1: What types of spaces are available?": {{
-          "value": null,
-          "citation": null
-        }},
-        "FAQ #2:What are the rental fees, what is included?": {{
-          "value": null,
-          "citation": null
-        }},
-        "FAQ #3:  Do you offer catering services?": {{
-          "value": null,
-          "citation": null
-        }},
-        "FAQ #4:  Is there on-site technology support?": {{
-          "value": null,
-          "citation": null
-        }},
-        "FAQ #5:  Do you provide event planning assistance?": {{
-          "value": null,
-          "citation": null
-        }},
-        "Supplemental FAQ #1: Enter a question here": {{
-          "value": null,
-          "citation": null
-        }},
-        "Supplemental FAQ #1: Enter the answer FAQ #1": {{
-          "value": null,
-          "citation": null
-        }},
-        "Supplemental FAQ #2: Enter a question here": {{
-          "value": null,
-          "citation": null
-        }},
-        "Supplemental FAQ #2: Enter the answer FAQ #2": {{
-          "value": null,
-          "citation": null
-        }},
-        "Supplemental FAQ #3: Enter a question here": {{
-          "value": null,
-          "citation": null
-        }},
-        "Supplemental FAQ #3: Enter the answer FAQ #3": {{
-          "value": null,
-          "citation": null
-        }},
-        "Supplemental FAQ #4: Enter a question here": {{
-          "value": null,
-          "citation": null
-        }},
-        "Supplemental FAQ #4: Enter the answer FAQ #4": {{
-          "value": null,
-          "citation": null
         }}
       }}
     }},
