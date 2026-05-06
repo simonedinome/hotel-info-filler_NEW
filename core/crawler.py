@@ -19,6 +19,19 @@ def get_firecrawl_client():
     return _FIRECRAWL_CLIENT
 
 
+def _crawl(app, url: str, depth: int, page_limit: int):
+    """Call the correct crawl method regardless of firecrawl-py version."""
+    params = {
+        "maxDepth": depth,
+        "limit": page_limit,
+        "scrapeOptions": {"formats": ["markdown"]},
+    }
+    # v1.x: crawl_url — v2.x: crawl
+    if hasattr(app, "crawl_url"):
+        return app.crawl_url(url, params=params)
+    return app.crawl(url, params=params)
+
+
 def _extract_pages(result) -> list[tuple[str, str]]:
     """Return (url, markdown) pairs from a firecrawl crawl response."""
     if isinstance(result, dict):
@@ -62,14 +75,7 @@ def crawl_hotel(hotel: dict, depth: int = FIRECRAWL_MAX_DEPTH, page_limit: int =
     t0 = time.monotonic()
 
     try:
-        result = app.crawl_url(
-            website,
-            params={
-                "maxDepth": depth,
-                "limit": page_limit,
-                "scrapeOptions": {"formats": ["markdown"]},
-            },
-        )
+        result = _crawl(app, website, depth, page_limit)
     except Exception as exc:
         sys.stdout.write(f"[{prop_id}] ERROR during crawl: {exc}\n")
         return None
