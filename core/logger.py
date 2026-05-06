@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
+import time
 
 from config import OUTPUT_DIR
 
@@ -29,6 +30,8 @@ class CategoryLogger:
         hotel_dir = Path(OUTPUT_DIR) / "hotels" / str(self.prop_id)
         hotel_dir.mkdir(parents=True, exist_ok=True)
         self.file_path = hotel_dir / f"{self.category}-processing.log"
+        self._run_start: float = time.monotonic()
+        self._last_step_time: float = self._run_start
 
     def _prefix(self) -> str:
         base = f"[{self.prop_id} | {self.category.upper()}"
@@ -60,7 +63,18 @@ class CategoryLogger:
         self._write("", f"SUCCESS: {msg}")
 
     def log_step(self, step: int, name: str) -> None:
-        self.info(f"STEP {step} - {name}")
+        now = time.monotonic()
+        since_last = now - self._last_step_time
+        total = now - self._run_start
+        self._last_step_time = now
+        self.info(f"STEP {step} - {name}  [+{since_last:.1f}s | {total:.1f}s total]")
+
+    def log_step_summary(self, step: int, **metrics) -> None:
+        parts = ", ".join(f"{k}={v}" for k, v in metrics.items())
+        self.info(f"Step {step} summary: {parts}")
+
+    def log_category_done(self, total_seconds: float) -> None:
+        self.info(f"Category completed in {total_seconds:.1f}s")
 
     def log_field_verified(self, field: str, value: str) -> None:
         self.info(f"Verified field: {field} = {value}")

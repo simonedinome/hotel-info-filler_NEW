@@ -14,7 +14,7 @@ from config import (
     WRITER_TEMPERATURE,
 )
 from core import PromptNotConfiguredError, safe_format
-from core.extractor import call_with_retry
+from core.extractor import bump_api_counter, call_with_retry
 from schemas.common import get_editorial_keys_for_element
 
 
@@ -68,6 +68,7 @@ def write_editorial(row: dict, category_context: str, schema_module, hotel: dict
     }
 
     def run_call():
+        bump_api_counter()
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers=get_openrouter_headers(),

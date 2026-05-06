@@ -19,7 +19,7 @@ from core.checkpoint import (
 )
 from core.context import prepare_context
 from core.exporter import export_all, export_category
-from core.extractor import detect_presence, extract_rows, load_prompt
+from core.extractor import detect_presence, extract_rows, get_api_counter, load_prompt, reset_api_counter
 from core.logger import CategoryLogger, create_run_log
 from core.verifier import verify_rows
 from core.writer import write_editorial
@@ -106,6 +106,37 @@ def build_row(schema_module, hotel: dict, verified_row: dict, editorial: dict) -
     return row
 
 
+def _count_verification_outcomes(raw_rows: list[dict], verified_rows: list[dict], schema_module) -> dict:
+    from schemas.common import columns_by_key
+    schema_columns = columns_by_key(schema_module.COLUMNS)
+    verified = rejected = skipped = 0
+    for raw_row, ver_row in zip(raw_rows, verified_rows):
+        for key, raw_payload in raw_row.get("fields", {}).items():
+            if raw_payload.get("value") in (None, [], ""):
+                continue
+            field_type = schema_columns.get(key, {}).get("field_type", "factual")
+            if field_type != "factual":
+                skipped += 1
+            else:
+                ver_val = ver_row.get("fields", {}).get(key, {}).get("value")
+                if ver_val not in (None, [], ""):
+                    verified += 1
+                else:
+                    rejected += 1
+    return {"verified": verified, "rejected": rejected, "skipped": skipped}
+
+
+def _print_run_summary(hotels: int, categories: int, elapsed_seconds: float, api_calls: int) -> None:
+    mins, secs = divmod(int(elapsed_seconds), 60)
+    elapsed_str = f"{mins}m {secs}s" if mins else f"{secs}s"
+    sys.stdout.write("\n=== RUN SUMMARY ===\n")
+    sys.stdout.write(f"  Hotels in run  : {hotels}\n")
+    sys.stdout.write(f"  Categories     : {categories}\n")
+    sys.stdout.write(f"  API calls      : {api_calls}\n")
+    sys.stdout.write(f"  Elapsed        : {elapsed_str}\n")
+    sys.stdout.write("===================\n")
+
+
 def _all_rows_null(rows: list[dict], schema_module) -> bool:
     """Return True if every non-system field in every row is null/empty."""
     system_keys = {col["key"] for col in schema_module.COLUMNS if col["field_type"] == "system"}
@@ -138,6 +169,7 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
         progress_label=progress_label,
     )
     schema_module = load_schema(category)
+    _cat_start = time.monotonic()
     try:
         logger.log_step(0, "LOAD CONTEXT")
         context = prepare_context(prop_id, category)
@@ -181,6 +213,14 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
             search_enabled=extraction_used_search,
         )
 
+        _fields_populated = sum(
+            1
+            for row in raw_rows
+            for payload in row.get("fields", {}).values()
+            if payload.get("value") not in (None, [], "")
+        )
+        logger.log_step_summary(2, elements=len(raw_rows), fields_populated=_fields_populated)
+
         # T-03: fallback chain for verification source text with logging
         _vst = extraction_result.get("verification_source_text") or ""
         if _vst:
@@ -217,10 +257,13 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
             search_enabled=extraction_used_search,
             logger=logger,
         )
+        _ver_outcomes = _count_verification_outcomes(raw_rows, verified_rows, schema_module)
+        logger.log_step_summary(3, **_ver_outcomes)
 
         logger.log_step(4, "EDITORIAL WRITING")
         final_rows = []
         writer_failed = False
+        editorial_written = 0
         for verified_row in verified_rows:
             editorial = write_editorial(
                 row=verified_row,
@@ -230,9 +273,12 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
                 category=category,
                 logger=logger,
             )
+            if editorial:
+                editorial_written += 1
             if verified_count(verified_row) > 0 and not editorial:
                 writer_failed = True
             final_rows.append(build_row(schema_module, hotel, verified_row, editorial))
+        logger.log_step_summary(4, editorial_written=editorial_written, rows=len(verified_rows))
 
         logger.log_step(5, "CHECKPOINT SAVE")
         effective_source = _effective_source(context, presence_used_search, extraction_used_search)
@@ -268,10 +314,14 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
         error_traceback = traceback.format_exc()
         mark_error(category, prop_id, str(exc), error_traceback)
         logger.error("Category processing failed", exc)
+    finally:
+        logger.log_category_done(time.monotonic() - _cat_start)
 
 
 def process_hotels(hotels: list[dict], categories: list[str], force: bool = False, retry_errors_only: bool = False) -> None:
+    reset_api_counter()
     run_log_path = create_run_log()
+    _run_start = time.monotonic()
     total = len(hotels)
     for hotel_index, hotel in enumerate(hotels, start=1):
         progress_label = f"{hotel_index}/{total}"
@@ -281,6 +331,7 @@ def process_hotels(hotels: list[dict], categories: list[str], force: bool = Fals
             process_category(hotel, category, run_log_path, progress_label, force=force)
         if hotel_index < total:
             time.sleep(REQUEST_DELAY)
+    _print_run_summary(len(hotels), len(categories), time.monotonic() - _run_start, get_api_counter())
 
 
 def print_status(hotels: list[dict], categories: list[str], verbose: bool) -> None:
