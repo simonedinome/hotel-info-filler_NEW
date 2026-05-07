@@ -20,41 +20,24 @@ GOLF_RADIUS_M = 16_000  # 16 km
 _NEARBY_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
 _DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 
-# Name must contain at least one of these to be considered golf
-_GOLF_NAME_KEYWORDS = {
-    "golf", "circolo golf", "campo golf", "golf club", "country club",
-}
-
-# Even if name matches, exclude if types contain these
-_EXCLUDE_TYPES = {"lodging"}
-
-# Even if name matches, exclude if name contains these
+# Exclude if name contains these (mini-golf variants)
 _EXCLUDE_NAME_KEYWORDS = {
-    "mini", "minigolf", "mini-golf", "pitch and putt", "pitch & putt",
+    "minigolf", "mini-golf", "pitch and putt", "pitch & putt",
 }
 
 
 def _is_golf_club(place_name: str, place_types: list[str]) -> bool:
     """Return True only if the place is a dedicated golf club/course.
 
-    Requires BOTH:
-    - 'golf_course' in the Google-assigned types (hard whitelist)
-    - name contains a golf-related keyword (catches API noise)
-    AND excludes:
-    - lodging-tagged places (hotels with a golf course nearby)
-    - mini-golf / pitch-and-putt venues
+    Primary gate: Google must classify it as golf_course in types.
+    Secondary gate: exclude lodging and mini-golf.
+    We do NOT require 'golf' in the name — many Italian clubs don't use it.
     """
-    # Hard whitelist: Google must classify it as a golf course
     if "golf_course" not in place_types:
         return False
-    # Exclude hotels/lodging that happen to be near a golf course
-    if any(t in _EXCLUDE_TYPES for t in place_types):
+    if "lodging" in place_types:
         return False
-    # Name must mention golf (excludes random businesses misclassified by API)
     name_lower = place_name.lower()
-    if not any(kw in name_lower for kw in _GOLF_NAME_KEYWORDS):
-        return False
-    # Exclude mini-golf and pitch & putt
     if any(kw in name_lower for kw in _EXCLUDE_NAME_KEYWORDS):
         return False
     return True
