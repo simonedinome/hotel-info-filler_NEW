@@ -4,9 +4,10 @@ import argparse
 import sys
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from config import ALL_CATEGORIES, OUTPUT_DIR, REQUEST_DELAY, hotels_by_id, load_hotels
+from config import ALL_CATEGORIES, OUTPUT_DIR, hotels_by_id, load_hotels
 from core import PromptNotConfiguredError
 from core.checkpoint import (
     get_status,
@@ -25,6 +26,8 @@ from core.verifier import verify_rows
 from core.writer import write_editorial
 from schemas import load_schema
 from schemas.common import get_editorial_keys_for_element, get_factual_keys_for_element
+
+WRITER_MAX_WORKERS = 8
 
 
 def parse_args() -> argparse.Namespace:
@@ -270,18 +273,31 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
         logger.log_step_summary(3, **_ver_outcomes)
 
         logger.log_step(4, "EDITORIAL WRITING")
-        final_rows = []
-        writer_failed = False
-        editorial_written = 0
-        for verified_row in verified_rows:
-            editorial = write_editorial(
+        category_context_text = context["filtered_text"] or context["full_text"] or ""
+
+        def _run_writer(verified_row):
+            return write_editorial(
                 row=verified_row,
-                category_context=context["filtered_text"] or context["full_text"] or "",
+                category_context=category_context_text,
                 schema_module=schema_module,
                 hotel=hotel,
                 category=category,
                 logger=logger,
             )
+
+        editorials: list[dict] = [{}] * len(verified_rows)
+        if verified_rows:
+            max_workers = min(len(verified_rows), WRITER_MAX_WORKERS)
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(_run_writer, vr): idx for idx, vr in enumerate(verified_rows)}
+                for future in futures:
+                    idx = futures[future]
+                    editorials[idx] = future.result() or {}
+
+        final_rows = []
+        writer_failed = False
+        editorial_written = 0
+        for verified_row, editorial in zip(verified_rows, editorials):
             if editorial:
                 editorial_written += 1
             if verified_count(verified_row) > 0 and not editorial:
@@ -342,8 +358,6 @@ def process_hotels(hotels: list[dict], categories: list[str], force: bool = Fals
             if retry_errors_only and get_status(category, str(hotel["Property ID"])) != "error":
                 continue
             process_category(hotel, category, run_log_path, progress_label, force=force)
-        if hotel_index < total:
-            time.sleep(REQUEST_DELAY)
     _print_run_summary(len(hotels), len(categories), time.monotonic() - _run_start, get_api_counter())
 
 
