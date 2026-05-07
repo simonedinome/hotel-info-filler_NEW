@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from openpyxl import load_workbook
 
 
 def load_dotenv_file(path: str = ".env") -> None:
@@ -59,7 +58,7 @@ OUTPUT_DIR = "output"
 PROMPTS_DIR = "prompts"
 SCHEMAS_DIR = "schemas"
 INPUT_DIR = "input"
-HOTELS_INPUT_PATH = str(Path(INPUT_DIR) / "export-hotel.xlsx")
+HOTELS_INPUT_PATH = str(Path(INPUT_DIR) / "export-hotel.csv")
 
 CATEGORY_KEYWORDS = {
     "dining": [
@@ -191,40 +190,32 @@ def _normalize_cell(value) -> str:
 
 
 def load_hotels(path: str | None = None) -> list[dict]:
-    workbook_path = Path(path or HOTELS_INPUT_PATH)
-    if not workbook_path.exists():
-        return []
-    workbook = load_workbook(workbook_path, read_only=True, data_only=True)
-    sheet = workbook[workbook.sheetnames[0]]
-    rows = sheet.iter_rows(values_only=True)
-    try:
-        header = [str(cell).strip() if cell is not None else "" for cell in next(rows)]
-    except StopIteration:
-        workbook.close()
-        return []
-    indexes = {name: index for index, name in enumerate(header)}
+    import csv
 
-    def cell(row_values, column_name: str):
-        index = indexes.get(column_name)
-        if index is None or index >= len(row_values):
-            return ""
-        return row_values[index]
+    csv_path = Path(path or HOTELS_INPUT_PATH)
+    if not csv_path.exists():
+        return []
 
     hotels = []
-    for row in rows:
-        prop_id = _normalize_cell(cell(row, "Property ID"))
-        if not prop_id:
-            continue
-        hotels.append(
-            {
-                "Property ID": prop_id,
-                "Nome account": _normalize_cell(cell(row, "Nome account")),
-                "Sito Web": _normalize_cell(cell(row, "Sito Web")),
-                "fLatitude": _normalize_cell(cell(row, "fLatitude")),
-                "fLongitude": _normalize_cell(cell(row, "fLongitude")),
-            }
-        )
-    workbook.close()
+    try:
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None:
+                return []
+            for row in reader:
+                prop_id = _normalize_cell(row.get("Property ID", ""))
+                if not prop_id:
+                    continue
+                hotels.append({
+                    "Property ID": prop_id,
+                    "Nome account": _normalize_cell(row.get("Nome account", "")),
+                    "Sito Web": _normalize_cell(row.get("Sito Web", "")),
+                    "fLatitude": _normalize_cell(row.get("fLatitude", "")),
+                    "fLongitude": _normalize_cell(row.get("fLongitude", "")),
+                })
+    except (IOError, OSError):
+        return []
+
     return hotels
 
 

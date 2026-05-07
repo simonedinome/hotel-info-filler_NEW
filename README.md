@@ -19,9 +19,10 @@ A comprehensive tool for extracting, processing, and verifying hotel information
    GOOGLE_PLACES_API_KEY=your_google_places_api_key
    ```
 
-2. **Prepare input data**: Place hotel data in `input/export-hotel.xlsx`
+2. **Prepare input data**: Place hotel data in `input/export-hotel.csv`
    - Required columns: `Property ID`, `Nome account`, `Sito Web`
    - For golf proximity search: also add `fLatitude` and `fLongitude` columns
+   - CSV format with comma separators; first row is header
 
 3. **Basic workflow**:
    ```bash
@@ -117,7 +118,7 @@ python process.py check-prompts
 
 Standalone tool to find golf clubs within 16 km of each hotel using Google Places API.
 
-**Setup**: Add `fLatitude` and `fLongitude` columns to `input/export-hotel.xlsx` with coordinates in Italian thousands-separator format (e.g., `43.781.410`).
+**Setup**: Add `fLatitude` and `fLongitude` columns to `input/export-hotel.csv` with coordinates in Italian thousands-separator format (e.g., `43.781.410`).
 
 **`golf_proximity.py`** — Find golf clubs for all hotels with coordinates
 ```bash
@@ -172,7 +173,7 @@ Available content categories for extraction:
 ```
 hotel-info-filler_NEW/
 ├── input/
-│   └── export-hotel.xlsx              # Input: hotel data with website URLs
+│   └── export-hotel.csv               # Input: hotel data with website URLs (CSV format)
 ├── output/
 │   ├── checkpoint-*.json              # Processing checkpoints (state tracking)
 │   ├── *-extracted.xlsx               # Raw extracted content per category
@@ -321,10 +322,11 @@ Invalid JSON returned by model: Expecting ',' delimiter...
 ### Golf proximity: no results found
 ```
 No hotels with coordinates found.
-Add 'fLatitude' and 'fLongitude' columns to input/export-hotel.xlsx and retry.
+Add 'fLatitude' and 'fLongitude' columns to input/export-hotel.csv and retry.
 ```
 **Solutions**:
-- Add `fLatitude` and `fLongitude` columns to `input/export-hotel.xlsx`
+- Ensure input file is `input/export-hotel.csv` (CSV format, not XLSX)
+- Add `fLatitude` and `fLongitude` columns to the CSV file
 - Ensure coordinates are properly formatted (Italian thousands-separator: `43.781.410`)
 - Verify `GOOGLE_PLACES_API_KEY` is set in `.env` and is valid
 - Check that golf clubs exist near the hotel location
