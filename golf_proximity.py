@@ -225,7 +225,7 @@ def main() -> None:
     if args.property_id:
         hotels = [h for h in hotels if h["Property ID"] == args.property_id]
         if not hotels:
-            sys.exit(f"Error: Property ID '{args.property_id}' not found in input Excel.")
+            sys.exit(f"Error: Property ID '{args.property_id}' not found in input/export-hotel.csv.")
 
     hotels_with_coords = [
         h for h in hotels if h.get("fLatitude") and h.get("fLongitude")
