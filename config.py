@@ -198,8 +198,14 @@ def load_hotels(path: str | None = None) -> list[dict]:
 
     hotels = []
     try:
-        with open(csv_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
+        with open(csv_path, "r", encoding="utf-8-sig") as f:
+            sample = f.read(4096)
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+            except csv.Error:
+                dialect = csv.excel  # fallback to comma
+            f.seek(0)
+            reader = csv.DictReader(f, dialect=dialect)
             if reader.fieldnames is None:
                 return []
             for row in reader:
