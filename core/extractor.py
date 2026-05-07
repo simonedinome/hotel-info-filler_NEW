@@ -130,6 +130,63 @@ def _sanitize_json_string(text: str) -> str:
     return text
 
 
+def _repair_truncated_json(text: str) -> str:
+    """Recover from JSON truncated mid-stream by closing all unclosed structures.
+
+    The model sometimes hits max_output_tokens or stops early, leaving the
+    response incomplete (missing closing braces/brackets). This walks the text
+    tracking string state and bracket depth, then appends the missing closers
+    in correct order. Also strips trailing commas and unterminated tokens.
+    """
+    stack: list[str] = []
+    in_string = False
+    escape = False
+    last_safe = 0  # index up to which the parsed prefix is valid
+    for i, ch in enumerate(text):
+        if escape:
+            escape = False
+            continue
+        if in_string:
+            if ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+                last_safe = i + 1
+            continue
+        if ch == '"':
+            in_string = True
+            continue
+        if ch in "{[":
+            stack.append(ch)
+            last_safe = i + 1
+        elif ch in "}]":
+            if stack and ((ch == "}" and stack[-1] == "{") or (ch == "]" and stack[-1] == "[")):
+                stack.pop()
+                last_safe = i + 1
+        elif ch in ",: \t\n\r":
+            pass
+        else:
+            # numeric/literal token
+            last_safe = i + 1
+
+    # Trim everything after the last position the parser could safely accept.
+    # If we were inside a string at EOF, drop to last_safe (before the bad string).
+    if in_string:
+        text = text[:last_safe]
+    else:
+        # Drop any partial trailing token (e.g. half-written number/keyword)
+        text = text[:last_safe] if last_safe < len(text) else text
+
+    # Strip a dangling comma that no longer has a sibling
+    text = text.rstrip()
+    if text.endswith(","):
+        text = text[:-1]
+
+    # Append missing closers in reverse-stack order
+    closers = "".join("}" if c == "{" else "]" for c in reversed(stack))
+    return text + closers
+
+
 def _parse_json_response_text(text: str):
     candidate = text.strip()
     if candidate.startswith("```"):
@@ -148,15 +205,28 @@ def _parse_json_response_text(text: str):
     except json.JSONDecodeError:
         pass
 
+    # Recovery path 1: try repairing truncated JSON (append missing closers)
+    repaired = _repair_truncated_json(candidate)
+    if repaired != candidate:
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError:
+            pass
+
     first_object = candidate.find("{")
     last_object = candidate.rfind("}")
     if first_object != -1 and last_object != -1 and last_object > first_object:
         snippet = candidate[first_object:last_object + 1]
         try:
             return json.loads(snippet)
-        except json.JSONDecodeError as exc:
-            preview = snippet[:2000]
-            raise ValueError(f"Invalid JSON returned by model: {exc}. Response preview: {preview}") from exc
+        except json.JSONDecodeError:
+            # Try repairing the snippet too
+            snippet_repaired = _repair_truncated_json(candidate[first_object:])
+            try:
+                return json.loads(snippet_repaired)
+            except json.JSONDecodeError as exc:
+                preview = snippet[:2000]
+                raise ValueError(f"Invalid JSON returned by model: {exc}. Response preview: {preview}") from exc
 
     first_array = candidate.find("[")
     last_array = candidate.rfind("]")

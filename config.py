@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from openpyxl import load_workbook
 
 
 def load_dotenv_file(path: str = ".env") -> None:
@@ -26,6 +25,7 @@ load_dotenv_file()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", "")
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 
 
 #GOOGLE_API_KEY = "YOUR_KEY_HERE"
@@ -36,7 +36,7 @@ OPENROUTER_MODEL = "openai/gpt-4o"
 
 GEMINI_TEMPERATURE = 0.1
 WRITER_TEMPERATURE = 0.4
-GEMINI_MAX_TOKENS = 8192
+GEMINI_MAX_TOKENS = 16384
 WRITER_MAX_TOKENS = 4096
 
 FIRECRAWL_MAX_DEPTH = 3
@@ -58,7 +58,7 @@ OUTPUT_DIR = "output"
 PROMPTS_DIR = "prompts"
 SCHEMAS_DIR = "schemas"
 INPUT_DIR = "input"
-HOTELS_INPUT_PATH = str(Path(INPUT_DIR) / "export-hotel.xlsx")
+HOTELS_INPUT_PATH = str(Path(INPUT_DIR) / "export-hotel.csv")
 
 CATEGORY_KEYWORDS = {
     "dining": [
@@ -190,38 +190,38 @@ def _normalize_cell(value) -> str:
 
 
 def load_hotels(path: str | None = None) -> list[dict]:
-    workbook_path = Path(path or HOTELS_INPUT_PATH)
-    if not workbook_path.exists():
-        return []
-    workbook = load_workbook(workbook_path, read_only=True, data_only=True)
-    sheet = workbook[workbook.sheetnames[0]]
-    rows = sheet.iter_rows(values_only=True)
-    try:
-        header = [str(cell).strip() if cell is not None else "" for cell in next(rows)]
-    except StopIteration:
-        workbook.close()
-        return []
-    indexes = {name: index for index, name in enumerate(header)}
+    import csv
 
-    def cell(row_values, column_name: str):
-        index = indexes.get(column_name)
-        if index is None or index >= len(row_values):
-            return ""
-        return row_values[index]
+    csv_path = Path(path or HOTELS_INPUT_PATH)
+    if not csv_path.exists():
+        return []
 
     hotels = []
-    for row in rows:
-        prop_id = _normalize_cell(cell(row, "Property ID"))
-        if not prop_id:
-            continue
-        hotels.append(
-            {
-                "Property ID": prop_id,
-                "Nome account": _normalize_cell(cell(row, "Nome account")),
-                "Sito Web": _normalize_cell(cell(row, "Sito Web")),
-            }
-        )
-    workbook.close()
+    try:
+        with open(csv_path, "r", encoding="utf-8-sig") as f:
+            sample = f.read(4096)
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+            except csv.Error:
+                dialect = csv.excel  # fallback to comma
+            f.seek(0)
+            reader = csv.DictReader(f, dialect=dialect)
+            if reader.fieldnames is None:
+                return []
+            for row in reader:
+                prop_id = _normalize_cell(row.get("Property ID", ""))
+                if not prop_id:
+                    continue
+                hotels.append({
+                    "Property ID": prop_id,
+                    "Nome account": _normalize_cell(row.get("Nome account", "")),
+                    "Sito Web": _normalize_cell(row.get("Sito Web", "")),
+                    "fLatitude": _normalize_cell(row.get("fLatitude", "")),
+                    "fLongitude": _normalize_cell(row.get("fLongitude", "")),
+                })
+    except (IOError, OSError):
+        return []
+
     return hotels
 
 

@@ -18,7 +18,7 @@ from core.checkpoint import (
     mark_no_website,
 )
 from core.context import prepare_context
-from core.exporter import export_all, export_category
+from core.exporter import append_run_csv_rows, export_all, export_category
 from core.extractor import detect_presence, extract_rows, get_api_counter, load_prompt, reset_api_counter
 from core.logger import CategoryLogger, create_run_log
 from core.verifier import verify_rows
@@ -319,6 +319,10 @@ def process_category(hotel: dict, category: str, run_log_path: str, progress_lab
                 verification_source_text=verification_source_text,
             )
             logger.success(f"Done - saved {len(final_rows)} rows to checkpoint")
+
+        run_csv_path = append_run_csv_rows(run_log_path, category, schema_module, final_rows)
+        if run_csv_path:
+            logger.info(f"Appended {len(final_rows)} row(s) to {run_csv_path}")
     except Exception as exc:
         error_traceback = traceback.format_exc()
         mark_error(category, prop_id, str(exc), error_traceback)
