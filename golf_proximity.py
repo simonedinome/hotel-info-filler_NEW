@@ -20,27 +20,19 @@ GOLF_RADIUS_M = 16_000  # 16 km
 _NEARBY_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
 _DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 
-# Exclude if name contains these (mini-golf variants)
-_EXCLUDE_NAME_KEYWORDS = {
-    "minigolf", "mini-golf", "pitch and putt", "pitch & putt",
-}
+_EXCLUDE_NAME_KEYWORDS = {"minigolf", "mini-golf", "pitch and putt", "pitch & putt"}
 
 
 def _is_golf_club(place_name: str, place_types: list[str]) -> bool:
-    """Return True only if the place is a dedicated golf club/course.
-
-    Primary gate: Google must classify it as golf_course in types.
-    Secondary gate: exclude lodging and mini-golf.
-    We do NOT require 'golf' in the name — many Italian clubs don't use it.
+    """Keep the place if name contains 'golf' OR Google typed it as golf_course.
+    Exclude mini-golf variants.
     """
-    if "golf_course" not in place_types:
-        return False
-    if "lodging" in place_types:
-        return False
     name_lower = place_name.lower()
     if any(kw in name_lower for kw in _EXCLUDE_NAME_KEYWORDS):
         return False
-    return True
+    return "golf" in name_lower or "golf_course" in place_types
+
+
 _HEADER_BG = "1F3864"
 _HEADER_FG = "FFD700"
 
@@ -49,26 +41,47 @@ _HEADER_FG = "FFD700"
 # Google Places helpers
 # ---------------------------------------------------------------------------
 
-def _find_golf_clubs_nearby(lat: float, lon: float, api_key: str) -> list[dict]:
-    """Call Nearby Search for golf_course, follow next_page_token (up to 3 pages)."""
+def _nearby_search_page(params: dict) -> tuple[list[dict], str | None]:
+    """Single Nearby Search call; returns (results, next_page_token)."""
+    resp = requests.get(_NEARBY_URL, params=params, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()
+    return data.get("results", []), data.get("next_page_token")
+
+
+def _paginate(base_params: dict, api_key: str, max_pages: int = 3) -> list[dict]:
+    """Fetch up to max_pages of Nearby Search results."""
     results: list[dict] = []
-    params: dict = {
-        "location": f"{lat},{lon}",
-        "radius": GOLF_RADIUS_M,
-        "type": "golf_course",
-        "key": api_key,
-    }
-    for _ in range(3):
-        resp = requests.get(_NEARBY_URL, params=params, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-        results.extend(data.get("results", []))
-        token = data.get("next_page_token")
+    params = {**base_params, "key": api_key}
+    for _ in range(max_pages):
+        page, token = _nearby_search_page(params)
+        results.extend(page)
         if not token:
             break
-        # Google requires a short delay before the token becomes valid
-        time.sleep(2)
+        time.sleep(2)  # Google requires delay before token is valid
         params = {"pagetoken": token, "key": api_key}
+    return results
+
+
+def _find_golf_clubs_nearby(lat: float, lon: float, api_key: str) -> list[dict]:
+    """Two complementary searches merged and deduplicated:
+    1. keyword='golf club'  — catches clubs by name regardless of type
+    2. type='golf_course'   — catches clubs typed by Google regardless of name
+    """
+    location = f"{lat},{lon}"
+    seen: set[str] = set()
+    results: list[dict] = []
+
+    for base in (
+        {"location": location, "radius": GOLF_RADIUS_M, "keyword": "golf club"},
+        {"location": location, "radius": GOLF_RADIUS_M, "type": "golf_course"},
+    ):
+        for place in _paginate(base, api_key):
+            pid = place.get("place_id", "")
+            if pid and pid not in seen:
+                seen.add(pid)
+                results.append(place)
+
     return results
 
 
