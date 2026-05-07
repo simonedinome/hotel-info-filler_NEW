@@ -19,6 +19,26 @@ from config import GOOGLE_PLACES_API_KEY, OUTPUT_DIR, load_hotels
 GOLF_RADIUS_M = 16_000  # 16 km
 _NEARBY_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
 _DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+
+# Place types that indicate it's a hotel/resort, not a dedicated golf club
+_EXCLUDE_TYPES = {"lodging", "hotel", "resort"}
+
+# Keywords in the name that disqualify a result (mini-golf, hotels, etc.)
+_EXCLUDE_NAME_KEYWORDS = {
+    "mini", "minigolf", "mini-golf", "pitch and putt", "pitch & putt",
+    "hotel", "resort", "albergo", "relais", "spa", "agriturismo",
+}
+
+def _is_golf_club(place_name: str, place_types: list[str]) -> bool:
+    """Return True only if the place is a dedicated golf club/course."""
+    # Exclude if Google tagged it as lodging
+    if any(t in _EXCLUDE_TYPES for t in place_types):
+        return False
+    # Exclude if the name contains disqualifying keywords
+    name_lower = place_name.lower()
+    if any(kw in name_lower for kw in _EXCLUDE_NAME_KEYWORDS):
+        return False
+    return True
 _HEADER_BG = "1F3864"
 _HEADER_FG = "FFD700"
 
@@ -51,10 +71,10 @@ def _find_golf_clubs_nearby(lat: float, lon: float, api_key: str) -> list[dict]:
 
 
 def _get_place_details(place_id: str, api_key: str) -> dict:
-    """Fetch name, website, formatted_address, geometry from Place Details."""
+    """Fetch name, website, formatted_address, geometry, types from Place Details."""
     params = {
         "place_id": place_id,
-        "fields": "name,website,formatted_address,geometry",
+        "fields": "name,website,formatted_address,geometry,types",
         "key": api_key,
     }
     resp = requests.get(_DETAILS_URL, params=params, timeout=15)
@@ -141,13 +161,18 @@ def find_nearby_golf(hotel: dict, api_key: str) -> list[dict]:
         if club_lat is not None and club_lon is not None:
             dist = _haversine_km(lat, lon, club_lat, club_lon)
             if dist > GOLF_RADIUS_M / 1000:
-                # Places API radius is approximate — enforce exact cutoff
                 continue
         else:
             dist = None
 
+        name = details.get("name") or place.get("name", "")
+        types = details.get("types") or place.get("types") or []
+
+        if not _is_golf_club(name, types):
+            continue
+
         clubs.append({
-            "name": details.get("name") or place.get("name", ""),
+            "name": name,
             "address": details.get("formatted_address", ""),
             "website": details.get("website", ""),
             "distance_km": round(dist, 2) if dist is not None else "",
