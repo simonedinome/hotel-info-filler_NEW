@@ -43,6 +43,34 @@ def _export_paths(category: str) -> tuple[Path, Path]:
     return xlsx_path, csv_path
 
 
+def _run_csv_path(run_log_path: str, category: str) -> Path:
+    """Sibling CSV next to the run log: output/run/<timestamp>-<category>.csv"""
+    log_path = Path(run_log_path)
+    return log_path.with_name(f"{log_path.stem}-{category}.csv")
+
+
+def append_run_csv_rows(
+    run_log_path: str,
+    category: str,
+    schema_module,
+    rows: list[dict],
+) -> str:
+    """Append rows to a per-run, per-category CSV. Writes header on first call."""
+    if not rows:
+        return ""
+    columns = [column["key"] for column in schema_module.COLUMNS]
+    csv_path = _run_csv_path(run_log_path, category)
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    write_header = not csv_path.exists()
+    with csv_path.open("a", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
+        if write_header:
+            writer.writeheader()
+        for row in rows:
+            writer.writerow({col: row.get(col) for col in columns})
+    return str(csv_path)
+
+
 def export_category_csv(category: str) -> str:
     checkpoint = load_checkpoint(category)
     schema_module = load_schema(category)
