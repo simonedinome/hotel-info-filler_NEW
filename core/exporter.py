@@ -63,7 +63,7 @@ def append_run_csv_rows(
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     write_header = not csv_path.exists()
     with csv_path.open("a", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
+        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore", delimiter=";")
         if write_header:
             writer.writeheader()
         for row in rows:
@@ -79,7 +79,7 @@ def export_category_csv(category: str) -> str:
     _, csv_path = _export_paths(category)
 
     with csv_path.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
+        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore", delimiter=";")
         writer.writeheader()
         for _, row_data in export_rows:
             writer.writerow({column: row_data.get(column) for column in columns})
