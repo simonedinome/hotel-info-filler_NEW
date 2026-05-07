@@ -1,0 +1,257 @@
+"""Standalone script: find golf clubs within 16 km of each hotel using
+Google Places Nearby Search, then export results to Excel."""
+
+from __future__ import annotations
+
+import argparse
+import math
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+import requests
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
+
+from config import GOOGLE_PLACES_API_KEY, OUTPUT_DIR, load_hotels
+
+GOLF_RADIUS_M = 16_000  # 16 km
+_NEARBY_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+_DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+_HEADER_BG = "1F3864"
+_HEADER_FG = "FFD700"
+
+
+# ---------------------------------------------------------------------------
+# Google Places helpers
+# ---------------------------------------------------------------------------
+
+def _find_golf_clubs_nearby(lat: float, lon: float, api_key: str) -> list[dict]:
+    """Call Nearby Search for golf_course, follow next_page_token (up to 3 pages)."""
+    results: list[dict] = []
+    params: dict = {
+        "location": f"{lat},{lon}",
+        "radius": GOLF_RADIUS_M,
+        "type": "golf_course",
+        "key": api_key,
+    }
+    for _ in range(3):
+        resp = requests.get(_NEARBY_URL, params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        results.extend(data.get("results", []))
+        token = data.get("next_page_token")
+        if not token:
+            break
+        # Google requires a short delay before the token becomes valid
+        time.sleep(2)
+        params = {"pagetoken": token, "key": api_key}
+    return results
+
+
+def _get_place_details(place_id: str, api_key: str) -> dict:
+    """Fetch name, website, formatted_address, geometry from Place Details."""
+    params = {
+        "place_id": place_id,
+        "fields": "name,website,formatted_address,geometry",
+        "key": api_key,
+    }
+    resp = requests.get(_DETAILS_URL, params=params, timeout=15)
+    resp.raise_for_status()
+    return resp.json().get("result", {})
+
+
+# ---------------------------------------------------------------------------
+# Geometry
+# ---------------------------------------------------------------------------
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6_371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def _parse_coord(value: str) -> float | None:
+    """Parse a coordinate string, accepting both '.' and ',' as decimal separator."""
+    try:
+        return float(str(value).replace(",", "."))
+    except ValueError:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Core logic
+# ---------------------------------------------------------------------------
+
+def find_nearby_golf(hotel: dict, api_key: str) -> list[dict]:
+    """Return a list of golf club dicts (sorted by distance) near *hotel*."""
+    lat = _parse_coord(hotel.get("Latitudine", ""))
+    lon = _parse_coord(hotel.get("Longitudine", ""))
+    if lat is None or lon is None:
+        return []
+
+    raw_results = _find_golf_clubs_nearby(lat, lon, api_key)
+
+    clubs: list[dict] = []
+    for place in raw_results:
+        place_id = place.get("place_id", "")
+        details = _get_place_details(place_id, api_key) if place_id else {}
+
+        loc = details.get("geometry", {}).get("location", {})
+        club_lat = loc.get("lat")
+        club_lon = loc.get("lng")
+
+        if club_lat is not None and club_lon is not None:
+            dist = _haversine_km(lat, lon, club_lat, club_lon)
+            if dist > GOLF_RADIUS_M / 1000:
+                # Places API radius is approximate — enforce exact cutoff
+                continue
+        else:
+            dist = None
+
+        clubs.append({
+            "name": details.get("name") or place.get("name", ""),
+            "address": details.get("formatted_address", ""),
+            "website": details.get("website", ""),
+            "distance_km": round(dist, 2) if dist is not None else "",
+        })
+
+    clubs.sort(key=lambda c: c["distance_km"] if isinstance(c["distance_km"], float) else 999.0)
+    return clubs
+
+
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+
+_COLUMNS = [
+    "Property ID",
+    "Hotel Name",
+    "Latitudine",
+    "Longitudine",
+    "Golf Club Name",
+    "Distance (km)",
+    "Address",
+    "Website",
+]
+
+
+def export_results(rows: list[dict], output_path: str) -> None:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Golf Proximity"
+
+    header_font = Font(bold=True, color=_HEADER_FG)
+    header_fill = PatternFill("solid", fgColor=_HEADER_BG)
+
+    for col_idx, col_name in enumerate(_COLUMNS, 1):
+        cell = ws.cell(row=1, column=col_idx, value=col_name)
+        cell.font = header_font
+        cell.fill = header_fill
+
+    for row in rows:
+        ws.append([
+            row["prop_id"],
+            row["hotel_name"],
+            row["lat"],
+            row["lon"],
+            row["club_name"],
+            row["distance_km"],
+            row["address"],
+            row["website"],
+        ])
+
+    # Auto-width (approximate)
+    for col in ws.columns:
+        max_len = max((len(str(c.value or "")) for c in col), default=10)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 60)
+
+    wb.save(output_path)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Find golf clubs within 16 km of each hotel using Google Places API."
+    )
+    parser.add_argument("--property-id", help="Process only this Property ID")
+    parser.add_argument("--output", help="Output Excel file path (default: output/golf-proximity-YYYY-MM-DD.xlsx)")
+    args = parser.parse_args()
+
+    if not GOOGLE_PLACES_API_KEY:
+        sys.exit("Error: GOOGLE_PLACES_API_KEY is not set. Add it to .env and retry.")
+
+    hotels = load_hotels()
+    if args.property_id:
+        hotels = [h for h in hotels if h["Property ID"] == args.property_id]
+        if not hotels:
+            sys.exit(f"Error: Property ID '{args.property_id}' not found in input Excel.")
+
+    hotels_with_coords = [
+        h for h in hotels if h.get("Latitudine") and h.get("Longitudine")
+    ]
+
+    if not hotels_with_coords:
+        print(
+            "No hotels with coordinates found.\n"
+            "Add 'Latitudine' and 'Longitudine' columns to input/export-hotel.xlsx and retry."
+        )
+        return
+
+    all_rows: list[dict] = []
+    total = len(hotels_with_coords)
+
+    for idx, hotel in enumerate(hotels_with_coords, 1):
+        prop_id = hotel["Property ID"]
+        name = hotel.get("Nome account") or prop_id
+        lat_raw = hotel.get("Latitudine", "")
+        lon_raw = hotel.get("Longitudine", "")
+        print(f"[{idx}/{total}] {name}  ({lat_raw}, {lon_raw})")
+
+        clubs = find_nearby_golf(hotel, GOOGLE_PLACES_API_KEY)
+        print(f"  → {len(clubs)} golf club(s) found")
+
+        if clubs:
+            for club in clubs:
+                all_rows.append({
+                    "prop_id": prop_id,
+                    "hotel_name": name,
+                    "lat": lat_raw,
+                    "lon": lon_raw,
+                    "club_name": club["name"],
+                    "distance_km": club["distance_km"],
+                    "address": club["address"],
+                    "website": club["website"],
+                })
+        else:
+            all_rows.append({
+                "prop_id": prop_id,
+                "hotel_name": name,
+                "lat": lat_raw,
+                "lon": lon_raw,
+                "club_name": "",
+                "distance_km": "",
+                "address": "",
+                "website": "",
+            })
+
+        if idx < total:
+            time.sleep(1)
+
+    output_path = args.output or str(
+        Path(OUTPUT_DIR) / f"golf-proximity-{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    )
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    export_results(all_rows, output_path)
+    print(f"\nSaved: {output_path}  ({len(all_rows)} rows)")
+
+
+if __name__ == "__main__":
+    main()

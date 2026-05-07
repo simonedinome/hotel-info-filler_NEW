@@ -26,6 +26,7 @@ load_dotenv_file()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", "")
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 
 
 #GOOGLE_API_KEY = "YOUR_KEY_HERE"
@@ -219,6 +220,8 @@ def load_hotels(path: str | None = None) -> list[dict]:
                 "Property ID": prop_id,
                 "Nome account": _normalize_cell(cell(row, "Nome account")),
                 "Sito Web": _normalize_cell(cell(row, "Sito Web")),
+                "Latitudine": _normalize_cell(cell(row, "Latitudine")),
+                "Longitudine": _normalize_cell(cell(row, "Longitudine")),
             }
         )
     workbook.close()
