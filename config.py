@@ -220,8 +220,8 @@ def load_hotels(path: str | None = None) -> list[dict]:
                 "Property ID": prop_id,
                 "Nome account": _normalize_cell(cell(row, "Nome account")),
                 "Sito Web": _normalize_cell(cell(row, "Sito Web")),
-                "Latitudine": _normalize_cell(cell(row, "Latitudine")),
-                "Longitudine": _normalize_cell(cell(row, "Longitudine")),
+                "fLatitude": _normalize_cell(cell(row, "fLatitude")),
+                "fLongitude": _normalize_cell(cell(row, "fLongitude")),
             }
         )
     workbook.close()

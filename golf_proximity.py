@@ -75,12 +75,45 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.asin(math.sqrt(a))
 
 
-def _parse_coord(value: str) -> float | None:
-    """Parse a coordinate string, accepting both '.' and ',' as decimal separator."""
+_LAT_RANGE = (35.0, 48.0)   # Italy bounding box
+_LON_RANGE = (5.0, 22.0)
+
+
+def _parse_coord(value: str, lo: float, hi: float) -> float | None:
+    """Parse a coordinate string within the expected [lo, hi] range.
+
+    Handles three input formats produced by Salesforce → Excel exports:
+      - Standard float string:   "43.78141" or "43,78141"
+      - Raw integer string:      "43781410"  (no dots)
+      - Italian thousands format: "4.378.141" or "43.781.410"
+    """
+    s = str(value).strip()
+    if not s:
+        return None
+
+    # Remove Italian thousands separators (two or more dots = display formatting)
+    if s.count(".") >= 2:
+        s = s.replace(".", "")
+    elif "," in s:
+        s = s.replace(",", ".")
+
     try:
-        return float(str(value).replace(",", "."))
+        raw = float(s)
     except ValueError:
         return None
+
+    if lo <= raw <= hi:
+        return raw
+
+    # Value is out of range — likely a raw integer needing division.
+    # Try decreasing powers of 10 until the result falls in [lo, hi].
+    if raw > hi and raw == int(raw):
+        for exp in range(5, 8):
+            result = raw / (10 ** exp)
+            if lo <= result <= hi:
+                return result
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -89,8 +122,8 @@ def _parse_coord(value: str) -> float | None:
 
 def find_nearby_golf(hotel: dict, api_key: str) -> list[dict]:
     """Return a list of golf club dicts (sorted by distance) near *hotel*."""
-    lat = _parse_coord(hotel.get("Latitudine", ""))
-    lon = _parse_coord(hotel.get("Longitudine", ""))
+    lat = _parse_coord(hotel.get("fLatitude", ""), *_LAT_RANGE)
+    lon = _parse_coord(hotel.get("fLongitude", ""), *_LON_RANGE)
     if lat is None or lon is None:
         return []
 
@@ -195,13 +228,13 @@ def main() -> None:
             sys.exit(f"Error: Property ID '{args.property_id}' not found in input Excel.")
 
     hotels_with_coords = [
-        h for h in hotels if h.get("Latitudine") and h.get("Longitudine")
+        h for h in hotels if h.get("fLatitude") and h.get("fLongitude")
     ]
 
     if not hotels_with_coords:
         print(
             "No hotels with coordinates found.\n"
-            "Add 'Latitudine' and 'Longitudine' columns to input/export-hotel.xlsx and retry."
+            "Add 'fLatitude' and 'fLongitude' columns to input/export-hotel.xlsx and retry."
         )
         return
 
@@ -211,8 +244,8 @@ def main() -> None:
     for idx, hotel in enumerate(hotels_with_coords, 1):
         prop_id = hotel["Property ID"]
         name = hotel.get("Nome account") or prop_id
-        lat_raw = hotel.get("Latitudine", "")
-        lon_raw = hotel.get("Longitudine", "")
+        lat_raw = hotel.get("fLatitude", "")
+        lon_raw = hotel.get("fLongitude", "")
         print(f"[{idx}/{total}] {name}  ({lat_raw}, {lon_raw})")
 
         clubs = find_nearby_golf(hotel, GOOGLE_PLACES_API_KEY)
